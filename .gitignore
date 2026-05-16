@@ -1,0 +1,18 @@
+# Dados baixados
+data/raw/
+data/processed/
+
+# Modelos treinados
+models/
+
+# Saídas geradas
+outputs/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Jupyter
+.ipynb_checkpoints/
