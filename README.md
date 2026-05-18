@@ -1,4 +1,4 @@
-<img width="741" height="678" alt="image" src="https://github.com/user-attachments/assets/72991964-5e91-4e98-aecc-4f4cf10dd928" /># AstroMind
+AstroMind
 
 AstroMind é um projeto (Em andamento) de Machine Learning em Python voltado para análise e classificação de imagens astronômicas obtidas a partir de dados públicos dos telescópios espaciais Hubble e James Webb.
 
