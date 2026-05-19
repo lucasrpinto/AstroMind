@@ -14,7 +14,6 @@ PROCESSED_IMAGES_DIR = PROCESSED_DATA_DIR / "images"
 PROCESSED_ARRAYS_DIR = PROCESSED_DATA_DIR / "arrays"
 
 LABELS_DIR = DATA_DIR / "labels"
-
 LABELS_FILE = LABELS_DIR / "labels.csv"
 
 MODELS_DIR = BASE_DIR / "models"
@@ -38,6 +37,28 @@ DEFAULT_IMAGE_SIZE = 224
 
 PREPROCESS_PERCENTILE_LOW = 1
 PREPROCESS_PERCENTILE_HIGH = 99
+
+
+# Classes iniciais previstas no projeto
+ASTRONOMY_CLASSES = [
+    "galaxia",
+    "estrela",
+    "nebulosa",
+    "aglomerado",
+    "ruido",
+    "objeto_brilhante",
+    "anomalia",
+]
+
+
+# Configurações de treino
+RANDOM_SEED = 42
+
+TRAIN_BATCH_SIZE = 4
+TRAIN_EPOCHS = 5
+LEARNING_RATE = 0.001
+
+MODEL_FILE = MODELS_DIR / "astronomy_classifier_v1.pth"
 
 
 def ensure_directories() -> None:
