@@ -15,6 +15,8 @@ PROCESSED_ARRAYS_DIR = PROCESSED_DATA_DIR / "arrays"
 
 LABELS_DIR = DATA_DIR / "labels"
 
+LABELS_FILE = LABELS_DIR / "labels.csv"
+
 MODELS_DIR = BASE_DIR / "models"
 
 OUTPUTS_DIR = BASE_DIR / "outputs"
