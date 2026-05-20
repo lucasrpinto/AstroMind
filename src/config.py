@@ -50,6 +50,42 @@ ASTRONOMY_CLASSES = [
     "anomalia",
 ]
 
+# Alvos iniciais para montar um dataset com mais de uma classe
+# Cada item representa um objeto astronômico que será buscado no MAST
+DATASET_TARGETS = [
+    {
+        "label": "galaxia",
+        "target": "M51",
+        "mission": "HST",
+        "radius": "0.05 deg",
+        "limit_observations": 5,
+        "limit_products": 10,
+    },
+    {
+        "label": "nebulosa",
+        "target": "M42",
+        "mission": "HST",
+        "radius": "0.05 deg",
+        "limit_observations": 5,
+        "limit_products": 10,
+    },
+    {
+        "label": "aglomerado",
+        "target": "M13",
+        "mission": "HST",
+        "radius": "0.05 deg",
+        "limit_observations": 5,
+        "limit_products": 10,
+    },
+    {
+        "label": "estrela",
+        "target": "Vega",
+        "mission": "HST",
+        "radius": "0.05 deg",
+        "limit_observations": 5,
+        "limit_products": 10,
+    },
+]
 
 # Configurações de treino
 RANDOM_SEED = 42
