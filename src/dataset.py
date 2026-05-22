@@ -114,6 +114,39 @@ class AstronomyImageDataset(Dataset[tuple[Tensor, Tensor]]):
 
         return image_tensor, label_tensor
 
+def get_train_transforms(image_size: int = DEFAULT_IMAGE_SIZE) -> ImageTransform:
+    """
+    Transformações usadas no treino.
+
+    O data augmentation cria pequenas variações artificiais das imagens,
+    ajudando o modelo a não decorar exatamente as mesmas imagens.
+    """
+
+    transform = transforms.Compose(
+        [
+            transforms.Resize((image_size, image_size)),
+            transforms.RandomHorizontalFlip(p=0.5),
+            transforms.RandomVerticalFlip(p=0.5),
+            transforms.RandomRotation(degrees=15),
+            transforms.ToTensor(),
+            transforms.Normalize(
+                mean=[0.5, 0.5, 0.5],
+                std=[0.5, 0.5, 0.5],
+            ),
+        ]
+    )
+
+    return transform
+
+
+def get_eval_transforms(image_size: int = DEFAULT_IMAGE_SIZE) -> ImageTransform:
+    """
+    Transformações usadas na validação e predição.
+
+    Aqui não usamos augmentation, porque queremos avaliar a imagem como ela é.
+    """
+
+    return get_default_transforms(image_size=image_size)
 
 def main() -> None:
     """

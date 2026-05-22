@@ -1,9 +1,10 @@
+import csv
+from collections import Counter
 from pathlib import Path
 
 import torch
 from torch import Tensor, nn
-from torch.utils.data import DataLoader, random_split
-from torch.utils.data.dataset import Subset
+from torch.utils.data import DataLoader, Subset, random_split
 
 from src.config import (
     MODEL_FILE,
@@ -11,35 +12,44 @@ from src.config import (
     TRAIN_BATCH_SIZE,
     TRAIN_EPOCHS,
     LEARNING_RATE,
+    WEIGHT_DECAY,
     DEFAULT_IMAGE_SIZE,
+    TRAINING_REPORT_FILE,
     ensure_directories,
 )
-from src.dataset import AstronomyImageDataset
+from src.dataset import (
+    AstronomyImageDataset,
+    get_eval_transforms,
+    get_train_transforms,
+)
 
 
 class SimpleAstronomyCNN(nn.Module):
     """
-    Primeira CNN simples para classificar imagens astronômicas.
-
-    Esse modelo é pequeno de propósito, apenas para validar o pipeline inicial.
+    CNN simples para classificar imagens astronômicas.
     """
 
     def __init__(self, num_classes: int) -> None:
         super().__init__()
 
         self.features = nn.Sequential(
-            # Bloco 1
             nn.Conv2d(3, 16, kernel_size=3, padding=1),
+            nn.BatchNorm2d(16),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2),
 
-            # Bloco 2
             nn.Conv2d(16, 32, kernel_size=3, padding=1),
+            nn.BatchNorm2d(32),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2),
 
-            # Bloco 3
             nn.Conv2d(32, 64, kernel_size=3, padding=1),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2),
+
+            nn.Conv2d(64, 128, kernel_size=3, padding=1),
+            nn.BatchNorm2d(128),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2),
         )
@@ -47,7 +57,8 @@ class SimpleAstronomyCNN(nn.Module):
         self.classifier = nn.Sequential(
             nn.AdaptiveAvgPool2d((1, 1)),
             nn.Flatten(),
-            nn.Linear(64, num_classes),
+            nn.Dropout(p=0.3),
+            nn.Linear(128, num_classes),
         )
 
     def forward(self, image: Tensor) -> Tensor:
@@ -72,40 +83,57 @@ def get_device() -> torch.device:
     return torch.device("cpu")
 
 
-def create_data_loaders(
-    dataset: AstronomyImageDataset,
-) -> tuple[DataLoader, DataLoader | None]:
+def create_data_loaders() -> tuple[
+    AstronomyImageDataset,
+    AstronomyImageDataset,
+    DataLoader,
+    DataLoader | None,
+]:
     """
-    Divide o dataset em treino e validação.
+    Cria datasets e dataloaders para treino e validação.
+
+    O dataset de treino usa augmentation.
+    O dataset de validação não usa augmentation.
     """
 
-    total_size = len(dataset)
+    train_dataset_full = AstronomyImageDataset(
+        transform=get_train_transforms()
+    )
+
+    eval_dataset_full = AstronomyImageDataset(
+        transform=get_eval_transforms()
+    )
+
+    total_size = len(train_dataset_full)
 
     if total_size == 0:
         raise ValueError("O dataset está vazio.")
 
     if total_size == 1:
         train_loader = DataLoader(
-            dataset,
+            train_dataset_full,
             batch_size=TRAIN_BATCH_SIZE,
             shuffle=True,
         )
 
-        return train_loader, None
+        return train_dataset_full, eval_dataset_full, train_loader, None
 
     validation_size = max(1, int(total_size * 0.2))
     train_size = total_size - validation_size
 
     generator = torch.Generator().manual_seed(RANDOM_SEED)
 
-    train_dataset, validation_dataset = random_split(
-        dataset,
+    train_subset_raw, validation_subset_raw = random_split(
+        range(total_size),
         [train_size, validation_size],
         generator=generator,
     )
 
-    train_subset = train_dataset
-    validation_subset = validation_dataset
+    train_indices = list(train_subset_raw)
+    validation_indices = list(validation_subset_raw)
+
+    train_subset = Subset(train_dataset_full, train_indices)
+    validation_subset = Subset(eval_dataset_full, validation_indices)
 
     train_loader = DataLoader(
         train_subset,
@@ -119,7 +147,7 @@ def create_data_loaders(
         shuffle=False,
     )
 
-    return train_loader, validation_loader
+    return train_dataset_full, eval_dataset_full, train_loader, validation_loader
 
 
 def calculate_accuracy(outputs: Tensor, labels: Tensor) -> float:
@@ -132,6 +160,33 @@ def calculate_accuracy(outputs: Tensor, labels: Tensor) -> float:
     total = labels.size(0)
 
     return correct / total
+
+
+def calculate_class_weights(
+    dataset: AstronomyImageDataset,
+    device: torch.device,
+) -> Tensor:
+    """
+    Calcula pesos por classe para reduzir impacto de desbalanceamento.
+
+    Mesmo o dataset estando quase balanceado, a classe nebulosa tem menos imagens.
+    """
+
+    labels = dataset.data["label"].tolist()
+    counts = Counter(labels)
+
+    weights = []
+
+    for class_name in dataset.classes:
+        count = counts[class_name]
+        weight = len(labels) / count
+        weights.append(weight)
+
+    weights_tensor = torch.tensor(weights, dtype=torch.float32).to(device)
+
+    print(f"Pesos por classe: {dict(zip(dataset.classes, weights))}")
+
+    return weights_tensor
 
 
 def train_one_epoch(
@@ -211,6 +266,27 @@ def evaluate(
     return average_loss, average_accuracy
 
 
+def save_training_report(rows: list[dict[str, float | int]]) -> None:
+    """
+    Salva o histórico do treino em CSV.
+    """
+
+    fieldnames = [
+        "epoch",
+        "train_loss",
+        "train_accuracy",
+        "validation_loss",
+        "validation_accuracy",
+    ]
+
+    with TRAINING_REPORT_FILE.open("w", newline="", encoding="utf-8") as file:
+        writer = csv.DictWriter(file, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+    print(f"Relatório de treino salvo em: {TRAINING_REPORT_FILE}")
+
+
 def save_model(
     model: nn.Module,
     model_path: Path,
@@ -237,28 +313,23 @@ def save_model(
 
 def main() -> None:
     """
-    Executa o treino inicial do modelo.
+    Executa o treino do modelo.
     """
 
     ensure_directories()
 
     torch.manual_seed(RANDOM_SEED)
 
-    dataset = AstronomyImageDataset()
+    train_dataset, eval_dataset, train_loader, validation_loader = create_data_loaders()
 
-    num_classes = len(dataset.classes)
+    num_classes = len(train_dataset.classes)
 
-    if num_classes == 0:
-        raise ValueError("Nenhuma classe encontrada no labels.csv.")
-
-    if num_classes == 1:
+    if num_classes <= 1:
         print("Atenção: o dataset possui apenas uma classe.")
         print("Este treino servirá apenas para validar o pipeline inicial.")
 
-    print(f"Total de imagens: {len(dataset)}")
-    print(f"Classes: {dataset.classes}")
-
-    train_loader, validation_loader = create_data_loaders(dataset)
+    print(f"Total de imagens: {len(train_dataset)}")
+    print(f"Classes: {train_dataset.classes}")
 
     device = get_device()
 
@@ -267,11 +338,20 @@ def main() -> None:
     model = SimpleAstronomyCNN(num_classes=num_classes)
     model = model.to(device)
 
-    criterion = nn.CrossEntropyLoss()
+    class_weights = calculate_class_weights(
+        dataset=train_dataset,
+        device=device,
+    )
+
+    criterion = nn.CrossEntropyLoss(weight=class_weights)
+
     optimizer = torch.optim.Adam(
         model.parameters(),
         lr=LEARNING_RATE,
+        weight_decay=WEIGHT_DECAY,
     )
+
+    training_history: list[dict[str, float | int]] = []
 
     for epoch in range(TRAIN_EPOCHS):
         train_loss, train_accuracy = train_one_epoch(
@@ -281,6 +361,9 @@ def main() -> None:
             optimizer=optimizer,
             device=device,
         )
+
+        validation_loss = 0.0
+        validation_accuracy = 0.0
 
         message = (
             f"Época {epoch + 1}/{TRAIN_EPOCHS} | "
@@ -301,12 +384,24 @@ def main() -> None:
                 f"Val Acc: {validation_accuracy:.4f}"
             )
 
+        training_history.append(
+            {
+                "epoch": epoch + 1,
+                "train_loss": train_loss,
+                "train_accuracy": train_accuracy,
+                "validation_loss": validation_loss,
+                "validation_accuracy": validation_accuracy,
+            }
+        )
+
         print(message)
+
+    save_training_report(training_history)
 
     save_model(
         model=model,
         model_path=MODEL_FILE,
-        dataset=dataset,
+        dataset=eval_dataset,
         num_classes=num_classes,
     )
 

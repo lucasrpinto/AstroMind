@@ -125,10 +125,12 @@ DATASET_TARGETS = [
 RANDOM_SEED = 42
 
 TRAIN_BATCH_SIZE = 4
-TRAIN_EPOCHS = 5
-LEARNING_RATE = 0.001
+TRAIN_EPOCHS = 30
+LEARNING_RATE = 0.0005
+WEIGHT_DECAY = 0.0001
 
 MODEL_FILE = MODELS_DIR / "astronomy_classifier_v1.pth"
+TRAINING_REPORT_FILE = OUTPUT_REPORTS_DIR / "training_report.csv"
 
 # Padrões de arquivos FITS que serão rejeitados automaticamente
 # Esses arquivos costumam representar produtos menos adequados para treino visual
