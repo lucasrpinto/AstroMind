@@ -63,37 +63,100 @@ ASTRONOMY_CLASSES = [
 # Alvos iniciais para montar um dataset com mais de uma classe
 # Cada item representa um objeto astronômico que será buscado no MAST
 DATASET_TARGETS = [
+    # Galáxias
     {
         "label": "galaxia",
         "target": "M51",
         "mission": "HST",
         "radius": "0.05 deg",
         "limit_observations": 5,
-        "limit_products": 10,
+        "limit_products": 8,
     },
+    {
+        "label": "galaxia",
+        "target": "M101",
+        "mission": "HST",
+        "radius": "0.05 deg",
+        "limit_observations": 5,
+        "limit_products": 8,
+    },
+    {
+        "label": "galaxia",
+        "target": "M104",
+        "mission": "HST",
+        "radius": "0.05 deg",
+        "limit_observations": 5,
+        "limit_products": 8,
+    },
+
+    # Nebulosas
     {
         "label": "nebulosa",
         "target": "M42",
         "mission": "HST",
         "radius": "0.05 deg",
         "limit_observations": 5,
-        "limit_products": 10,
+        "limit_products": 8,
     },
+    {
+        "label": "nebulosa",
+        "target": "M8",
+        "mission": "HST",
+        "radius": "0.05 deg",
+        "limit_observations": 5,
+        "limit_products": 8,
+    },
+    {
+        "label": "nebulosa",
+        "target": "M16",
+        "mission": "HST",
+        "radius": "0.05 deg",
+        "limit_observations": 5,
+        "limit_products": 8,
+    },
+    {
+        "label": "nebulosa",
+        "target": "NGC 6302",
+        "mission": "HST",
+        "radius": "0.05 deg",
+        "limit_observations": 5,
+        "limit_products": 8,
+    },
+
+    # Aglomerados
     {
         "label": "aglomerado",
         "target": "M13",
         "mission": "HST",
         "radius": "0.05 deg",
         "limit_observations": 5,
-        "limit_products": 10,
+        "limit_products": 8,
     },
+    {
+        "label": "aglomerado",
+        "target": "M92",
+        "mission": "HST",
+        "radius": "0.05 deg",
+        "limit_observations": 5,
+        "limit_products": 8,
+    },
+    {
+        "label": "aglomerado",
+        "target": "NGC 104",
+        "mission": "HST",
+        "radius": "0.05 deg",
+        "limit_observations": 5,
+        "limit_products": 8,
+    },
+
+    # Estrelas
     {
         "label": "estrela",
         "target": "Vega",
         "mission": "HST",
         "radius": "0.05 deg",
         "limit_observations": 5,
-        "limit_products": 10,
+        "limit_products": 8,
     },
     {
         "label": "estrela",
@@ -101,7 +164,7 @@ DATASET_TARGETS = [
         "mission": "HST",
         "radius": "0.05 deg",
         "limit_observations": 5,
-        "limit_products": 10,
+        "limit_products": 8,
     },
     {
         "label": "estrela",
@@ -109,7 +172,7 @@ DATASET_TARGETS = [
         "mission": "HST",
         "radius": "0.05 deg",
         "limit_observations": 5,
-        "limit_products": 10,
+        "limit_products": 8,
     },
     {
         "label": "estrela",
@@ -117,7 +180,7 @@ DATASET_TARGETS = [
         "mission": "HST",
         "radius": "0.05 deg",
         "limit_observations": 5,
-        "limit_products": 10,
+        "limit_products": 8,
     },
 ]
 
