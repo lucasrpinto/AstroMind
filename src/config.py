@@ -95,6 +95,30 @@ DATASET_TARGETS = [
         "limit_observations": 5,
         "limit_products": 10,
     },
+    {
+        "label": "estrela",
+        "target": "Sirius",
+        "mission": "HST",
+        "radius": "0.05 deg",
+        "limit_observations": 5,
+        "limit_products": 10,
+    },
+    {
+        "label": "estrela",
+        "target": "Betelgeuse",
+        "mission": "HST",
+        "radius": "0.05 deg",
+        "limit_observations": 5,
+        "limit_products": 10,
+    },
+    {
+        "label": "estrela",
+        "target": "Proxima Cen",
+        "mission": "HST",
+        "radius": "0.05 deg",
+        "limit_observations": 5,
+        "limit_products": 10,
+    },
 ]
 
 # Configurações de treino
