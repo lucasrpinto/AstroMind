@@ -132,6 +132,9 @@ WEIGHT_DECAY = 0.0001
 MODEL_FILE = MODELS_DIR / "astronomy_classifier_v1.pth"
 TRAINING_REPORT_FILE = OUTPUT_REPORTS_DIR / "training_report.csv"
 
+EVALUATION_REPORT_FILE = OUTPUT_REPORTS_DIR / "evaluation_report.csv"
+CONFUSION_MATRIX_FILE = OUTPUT_REPORTS_DIR / "confusion_matrix.csv"
+
 # Padrões de arquivos FITS que serão rejeitados automaticamente
 # Esses arquivos costumam representar produtos menos adequados para treino visual
 # src/config.py
