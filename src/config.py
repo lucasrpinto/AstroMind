@@ -349,6 +349,102 @@ SKYVIEW_TARGETS = [
     },
 ]
 
+# Alvos externos para validação fora do dataset principal
+# Importante: esses alvos não devem ser os mesmos usados no treino.
+EXTERNAL_SKYVIEW_TARGETS = [
+    # Galáxias externas
+    {
+        "label": "galaxia",
+        "target": "M33",
+        "surveys": ["DSS2 Red", "DSS2 Blue"],
+        "width_degrees": 0.22,
+        "pixels": 400,
+    },
+    {
+        "label": "galaxia",
+        "target": "NGC 891",
+        "surveys": ["DSS2 Red", "DSS2 Blue"],
+        "width_degrees": 0.18,
+        "pixels": 400,
+    },
+    {
+        "label": "galaxia",
+        "target": "NGC 4565",
+        "surveys": ["DSS2 Red", "DSS2 Blue"],
+        "width_degrees": 0.18,
+        "pixels": 400,
+    },
+
+    # Estrelas externas
+    {
+        "label": "estrela",
+        "target": "Arcturus",
+        "surveys": ["DSS2 Red", "DSS2 Blue"],
+        "width_degrees": 0.08,
+        "pixels": 400,
+    },
+    {
+        "label": "estrela",
+        "target": "Capella",
+        "surveys": ["DSS2 Red", "DSS2 Blue"],
+        "width_degrees": 0.08,
+        "pixels": 400,
+    },
+    {
+        "label": "estrela",
+        "target": "Altair",
+        "surveys": ["DSS2 Red", "DSS2 Blue"],
+        "width_degrees": 0.08,
+        "pixels": 400,
+    },
+
+    # Nebulosas externas
+    {
+        "label": "nebulosa",
+        "target": "M27",
+        "surveys": ["DSS2 Red", "DSS2 Blue"],
+        "width_degrees": 0.20,
+        "pixels": 400,
+    },
+    {
+        "label": "nebulosa",
+        "target": "M57",
+        "surveys": ["DSS2 Red", "DSS2 Blue"],
+        "width_degrees": 0.12,
+        "pixels": 400,
+    },
+    {
+        "label": "nebulosa",
+        "target": "NGC 7000",
+        "surveys": ["DSS2 Red", "DSS2 Blue"],
+        "width_degrees": 0.25,
+        "pixels": 400,
+    },
+
+    # Aglomerados externos
+    {
+        "label": "aglomerado",
+        "target": "M3",
+        "surveys": ["DSS2 Red", "DSS2 Blue"],
+        "width_degrees": 0.18,
+        "pixels": 400,
+    },
+    {
+        "label": "aglomerado",
+        "target": "M5",
+        "surveys": ["DSS2 Red", "DSS2 Blue"],
+        "width_degrees": 0.18,
+        "pixels": 400,
+    },
+    {
+        "label": "aglomerado",
+        "target": "M15",
+        "surveys": ["DSS2 Red", "DSS2 Blue"],
+        "width_degrees": 0.18,
+        "pixels": 400,
+    },
+]
+
 # Configurações de treino
 RANDOM_SEED = 42
 

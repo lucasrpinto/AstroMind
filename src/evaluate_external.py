@@ -6,6 +6,10 @@ import torch
 from PIL import Image
 from torch import Tensor
 
+import numpy as np
+import cv2
+from astropy.io import fits
+
 from src.config import (
     MODEL_FILE,
     EXTERNAL_IMAGES_DIR,
@@ -13,6 +17,9 @@ from src.config import (
     EXTERNAL_EVALUATION_REPORT_FILE,
     EXTERNAL_CONFUSION_MATRIX_FILE,
     EXTERNAL_EVALUATE_RUNS_LOG_FILE,
+    DEFAULT_IMAGE_SIZE,
+    PREPROCESS_PERCENTILE_LOW,
+    PREPROCESS_PERCENTILE_HIGH,
     ensure_directories,
 )
 from src.dataset import get_eval_transforms
@@ -104,21 +111,103 @@ def load_external_labels() -> pd.DataFrame:
     return labels_df
 
 
+def normalize_fits_image(
+    image: np.ndarray,
+    low_percentile: int = PREPROCESS_PERCENTILE_LOW,
+    high_percentile: int = PREPROCESS_PERCENTILE_HIGH,
+) -> np.ndarray:
+    """
+    Normaliza uma imagem FITS para 0-255.
+    """
+
+    image = image.astype(np.float32)
+
+    image[~np.isfinite(image)] = np.nan
+
+    if np.isnan(image).all():
+        raise ValueError("A imagem FITS contém somente valores inválidos.")
+
+    median_value = float(np.nanmedian(image))
+    image = np.nan_to_num(image, nan=median_value)
+
+    low_value = float(np.percentile(image, low_percentile))
+    high_value = float(np.percentile(image, high_percentile))
+
+    if high_value <= low_value:
+        low_value = float(np.min(image))
+        high_value = float(np.max(image))
+
+    if high_value <= low_value:
+        raise ValueError("Não foi possível normalizar a imagem FITS.")
+
+    image = np.clip(image, low_value, high_value)
+    image = (image - low_value) / (high_value - low_value)
+    image = image * 255.0
+
+    return image.astype(np.uint8)
+
+
+def load_fits_as_rgb_image(image_path: Path) -> Image.Image:
+    """
+    Carrega um FITS externo e transforma em imagem RGB para o modelo.
+    """
+
+    with fits.open(image_path) as hdul:
+        image_data = None
+
+        for hdu in hdul:
+            data = hdu.data
+
+            if data is None:
+                continue
+
+            if not isinstance(data, np.ndarray):
+                continue
+
+            data = np.squeeze(data)
+
+            while data.ndim > 2:
+                data = data[0]
+
+            if data.ndim == 2:
+                image_data = data.astype(np.float32)
+                break
+
+        if image_data is None:
+            raise ValueError("Nenhuma imagem 2D encontrada no FITS externo.")
+
+    normalized = normalize_fits_image(image_data)
+
+    resized = cv2.resize(
+        normalized,
+        (DEFAULT_IMAGE_SIZE, DEFAULT_IMAGE_SIZE),
+        interpolation=cv2.INTER_AREA,
+    )
+
+    rgb = cv2.cvtColor(resized, cv2.COLOR_GRAY2RGB)
+
+    return Image.fromarray(rgb)
+
+
 def load_image_tensor(image_path: Path) -> Tensor:
     """
-    Carrega uma imagem externa e aplica as transformações de avaliação.
+    Carrega uma imagem externa comum ou FITS e aplica as transformações de avaliação.
     """
 
     if not image_path.exists():
         raise FileNotFoundError(f"Imagem externa não encontrada: {image_path}")
 
-    image = Image.open(image_path).convert("RGB")
+    suffix = image_path.suffix.lower()
+
+    if suffix == ".fits":
+        image = load_fits_as_rgb_image(image_path)
+    else:
+        image = Image.open(image_path).convert("RGB")
 
     transform = get_eval_transforms()
     image_tensor = transform(image)
 
     return image_tensor.unsqueeze(0)
-
 
 @torch.no_grad()
 def predict_external_image(
