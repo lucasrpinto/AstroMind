@@ -184,6 +184,152 @@ DATASET_TARGETS = [
     },
 ]
 
+# Alvos complementares via SkyView
+# A ideia é usar imagens mais padronizadas para equilibrar o dataset,
+# principalmente nas classes estrela e galaxia.
+SKYVIEW_TARGETS = [
+    # Galáxias
+    {
+        "label": "galaxia",
+        "target": "M51",
+        "surveys": ["DSS2 Red", "DSS2 Blue"],
+        "width_degrees": 0.18,
+        "pixels": 400,
+    },
+    {
+        "label": "galaxia",
+        "target": "M101",
+        "surveys": ["DSS2 Red", "DSS2 Blue"],
+        "width_degrees": 0.22,
+        "pixels": 400,
+    },
+    {
+        "label": "galaxia",
+        "target": "M104",
+        "surveys": ["DSS2 Red", "DSS2 Blue"],
+        "width_degrees": 0.18,
+        "pixels": 400,
+    },
+    {
+        "label": "galaxia",
+        "target": "M81",
+        "surveys": ["DSS2 Red", "DSS2 Blue"],
+        "width_degrees": 0.25,
+        "pixels": 400,
+    },
+    {
+        "label": "galaxia",
+        "target": "M82",
+        "surveys": ["DSS2 Red", "DSS2 Blue"],
+        "width_degrees": 0.20,
+        "pixels": 400,
+    },
+    {
+        "label": "galaxia",
+        "target": "NGC 1300",
+        "surveys": ["DSS2 Red", "DSS2 Blue"],
+        "width_degrees": 0.18,
+        "pixels": 400,
+    },
+
+    # Estrelas
+    {
+        "label": "estrela",
+        "target": "Vega",
+        "surveys": ["DSS2 Red", "DSS2 Blue"],
+        "width_degrees": 0.08,
+        "pixels": 400,
+    },
+    {
+        "label": "estrela",
+        "target": "Sirius",
+        "surveys": ["DSS2 Red", "DSS2 Blue"],
+        "width_degrees": 0.08,
+        "pixels": 400,
+    },
+    {
+        "label": "estrela",
+        "target": "Betelgeuse",
+        "surveys": ["DSS2 Red", "DSS2 Blue"],
+        "width_degrees": 0.08,
+        "pixels": 400,
+    },
+    {
+        "label": "estrela",
+        "target": "Rigel",
+        "surveys": ["DSS2 Red", "DSS2 Blue"],
+        "width_degrees": 0.08,
+        "pixels": 400,
+    },
+    {
+        "label": "estrela",
+        "target": "Aldebaran",
+        "surveys": ["DSS2 Red", "DSS2 Blue"],
+        "width_degrees": 0.08,
+        "pixels": 400,
+    },
+    {
+        "label": "estrela",
+        "target": "Polaris",
+        "surveys": ["DSS2 Red", "DSS2 Blue"],
+        "width_degrees": 0.08,
+        "pixels": 400,
+    },
+    {
+        "label": "estrela",
+        "target": "Deneb",
+        "surveys": ["DSS2 Red", "DSS2 Blue"],
+        "width_degrees": 0.08,
+        "pixels": 400,
+    },
+
+    # Nebulosas complementares
+    {
+        "label": "nebulosa",
+        "target": "M42",
+        "surveys": ["DSS2 Red", "DSS2 Blue"],
+        "width_degrees": 0.25,
+        "pixels": 400,
+    },
+    {
+        "label": "nebulosa",
+        "target": "M8",
+        "surveys": ["DSS2 Red", "DSS2 Blue"],
+        "width_degrees": 0.25,
+        "pixels": 400,
+    },
+    {
+        "label": "nebulosa",
+        "target": "M16",
+        "surveys": ["DSS2 Red", "DSS2 Blue"],
+        "width_degrees": 0.25,
+        "pixels": 400,
+    },
+
+    # Aglomerados complementares
+    {
+        "label": "aglomerado",
+        "target": "M13",
+        "surveys": ["DSS2 Red", "DSS2 Blue"],
+        "width_degrees": 0.18,
+        "pixels": 400,
+    },
+    {
+        "label": "aglomerado",
+        "target": "M92",
+        "surveys": ["DSS2 Red", "DSS2 Blue"],
+        "width_degrees": 0.18,
+        "pixels": 400,
+    },
+    {
+        "label": "aglomerado",
+        "target": "NGC 104",
+        "surveys": ["DSS2 Red", "DSS2 Blue"],
+        "width_degrees": 0.18,
+        "pixels": 400,
+    },
+]
+
 # Configurações de treino
 RANDOM_SEED = 42
 
@@ -194,9 +340,9 @@ WEIGHT_DECAY = 0.0001
 
 MODEL_FILE = MODELS_DIR / "astronomy_classifier_v1.pth"
 TRAINING_REPORT_FILE = OUTPUT_REPORTS_DIR / "training_report.csv"
-
 EVALUATION_REPORT_FILE = OUTPUT_REPORTS_DIR / "evaluation_report.csv"
 CONFUSION_MATRIX_FILE = OUTPUT_REPORTS_DIR / "confusion_matrix.csv"
+SKYVIEW_DOWNLOAD_REPORT_FILE = OUTPUT_REPORTS_DIR / "skyview_download_report.csv"
 
 # Padrões de arquivos FITS que serão rejeitados automaticamente
 # Esses arquivos costumam representar produtos menos adequados para treino visual
