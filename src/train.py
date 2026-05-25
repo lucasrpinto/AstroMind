@@ -1,13 +1,18 @@
+# src/train.py
+
 import csv
 from collections import Counter
+from datetime import datetime
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import torch
 from torch import Tensor, nn
-from torch.utils.data import DataLoader, Subset, random_split
+from torch.utils.data import DataLoader
 
 from src.config import (
-    MODEL_FILE,
+    BEST_MODEL_FILE,
+    LAST_MODEL_FILE,
     RANDOM_SEED,
     TRAIN_BATCH_SIZE,
     TRAIN_EPOCHS,
@@ -15,11 +20,13 @@ from src.config import (
     WEIGHT_DECAY,
     DEFAULT_IMAGE_SIZE,
     TRAINING_REPORT_FILE,
+    EXPERIMENT_SUMMARY_FILE,
+    TRAINING_LOSS_PLOT_FILE,
+    TRAINING_ACCURACY_PLOT_FILE,
     TRAIN_LABELS_FILE,
     VAL_LABELS_FILE,
     ensure_directories,
 )
-
 from src.dataset import (
     AstronomyImageDataset,
     get_eval_transforms,
@@ -123,6 +130,7 @@ def create_data_loaders() -> tuple[
 
     return train_dataset, validation_dataset, train_loader, validation_loader
 
+
 def calculate_accuracy(outputs: Tensor, labels: Tensor) -> float:
     """
     Calcula a acurácia do batch.
@@ -141,8 +149,6 @@ def calculate_class_weights(
 ) -> Tensor:
     """
     Calcula pesos por classe para reduzir impacto de desbalanceamento.
-
-    Mesmo o dataset estando quase balanceado, a classe nebulosa tem menos imagens.
     """
 
     labels = dataset.data["label"].tolist()
@@ -239,9 +245,46 @@ def evaluate(
     return average_loss, average_accuracy
 
 
+def build_checkpoint(
+    model: nn.Module,
+    dataset: AstronomyImageDataset,
+    num_classes: int,
+    epoch: int,
+    validation_loss: float,
+    validation_accuracy: float,
+) -> dict:
+    """
+    Monta o checkpoint do modelo.
+    """
+
+    return {
+        "model_state_dict": model.state_dict(),
+        "classes": dataset.classes,
+        "class_to_idx": dataset.class_to_idx,
+        "idx_to_class": dataset.idx_to_class,
+        "num_classes": num_classes,
+        "image_size": DEFAULT_IMAGE_SIZE,
+        "epoch": epoch,
+        "validation_loss": validation_loss,
+        "validation_accuracy": validation_accuracy,
+    }
+
+
+def save_model_checkpoint(
+    checkpoint: dict,
+    model_path: Path,
+) -> None:
+    """
+    Salva um checkpoint do modelo.
+    """
+
+    torch.save(checkpoint, model_path)
+    print(f"Modelo salvo em: {model_path}")
+
+
 def save_training_report(rows: list[dict[str, float | int]]) -> None:
     """
-    Salva o histórico do treino em CSV.
+    Salva o histórico completo do treino em CSV.
     """
 
     fieldnames = [
@@ -250,6 +293,7 @@ def save_training_report(rows: list[dict[str, float | int]]) -> None:
         "train_accuracy",
         "validation_loss",
         "validation_accuracy",
+        "is_best_model",
     ]
 
     with TRAINING_REPORT_FILE.open("w", newline="", encoding="utf-8") as file:
@@ -260,28 +304,113 @@ def save_training_report(rows: list[dict[str, float | int]]) -> None:
     print(f"Relatório de treino salvo em: {TRAINING_REPORT_FILE}")
 
 
-def save_model(
-    model: nn.Module,
-    model_path: Path,
-    dataset: AstronomyImageDataset,
-    num_classes: int,
+def save_training_plots(rows: list[dict[str, float | int]]) -> None:
+    """
+    Gera gráficos de loss e accuracy.
+    """
+
+    epochs = [int(row["epoch"]) for row in rows]
+
+    train_loss = [float(row["train_loss"]) for row in rows]
+    validation_loss = [float(row["validation_loss"]) for row in rows]
+
+    train_accuracy = [float(row["train_accuracy"]) for row in rows]
+    validation_accuracy = [float(row["validation_accuracy"]) for row in rows]
+
+    plt.figure()
+    plt.plot(epochs, train_loss, label="Train Loss")
+    plt.plot(epochs, validation_loss, label="Validation Loss")
+    plt.xlabel("Época")
+    plt.ylabel("Loss")
+    plt.title("Evolução do Loss")
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(TRAINING_LOSS_PLOT_FILE, bbox_inches="tight")
+    plt.close()
+
+    plt.figure()
+    plt.plot(epochs, train_accuracy, label="Train Accuracy")
+    plt.plot(epochs, validation_accuracy, label="Validation Accuracy")
+    plt.xlabel("Época")
+    plt.ylabel("Accuracy")
+    plt.title("Evolução da Acurácia")
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(TRAINING_ACCURACY_PLOT_FILE, bbox_inches="tight")
+    plt.close()
+
+    print(f"Gráfico de loss salvo em: {TRAINING_LOSS_PLOT_FILE}")
+    print(f"Gráfico de acurácia salvo em: {TRAINING_ACCURACY_PLOT_FILE}")
+
+
+def append_experiment_summary(
+    train_dataset: AstronomyImageDataset,
+    validation_dataset: AstronomyImageDataset,
+    best_epoch: int,
+    best_validation_loss: float,
+    best_validation_accuracy: float,
+    final_train_loss: float,
+    final_train_accuracy: float,
+    final_validation_loss: float,
+    final_validation_accuracy: float,
 ) -> None:
     """
-    Salva o modelo treinado junto com as informações das classes.
+    Adiciona uma linha no resumo de experimentos.
     """
 
-    checkpoint = {
-        "model_state_dict": model.state_dict(),
-        "classes": dataset.classes,
-        "class_to_idx": dataset.class_to_idx,
-        "idx_to_class": dataset.idx_to_class,
-        "num_classes": num_classes,
-        "image_size": DEFAULT_IMAGE_SIZE,
+    file_exists = EXPERIMENT_SUMMARY_FILE.exists()
+
+    fieldnames = [
+        "created_at",
+        "train_size",
+        "validation_size",
+        "num_classes",
+        "classes",
+        "epochs",
+        "batch_size",
+        "learning_rate",
+        "weight_decay",
+        "best_epoch",
+        "best_validation_loss",
+        "best_validation_accuracy",
+        "final_train_loss",
+        "final_train_accuracy",
+        "final_validation_loss",
+        "final_validation_accuracy",
+        "best_model_file",
+        "last_model_file",
+    ]
+
+    row = {
+        "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "train_size": len(train_dataset),
+        "validation_size": len(validation_dataset),
+        "num_classes": len(train_dataset.classes),
+        "classes": "|".join(train_dataset.classes),
+        "epochs": TRAIN_EPOCHS,
+        "batch_size": TRAIN_BATCH_SIZE,
+        "learning_rate": LEARNING_RATE,
+        "weight_decay": WEIGHT_DECAY,
+        "best_epoch": best_epoch,
+        "best_validation_loss": round(best_validation_loss, 6),
+        "best_validation_accuracy": round(best_validation_accuracy, 6),
+        "final_train_loss": round(final_train_loss, 6),
+        "final_train_accuracy": round(final_train_accuracy, 6),
+        "final_validation_loss": round(final_validation_loss, 6),
+        "final_validation_accuracy": round(final_validation_accuracy, 6),
+        "best_model_file": str(BEST_MODEL_FILE),
+        "last_model_file": str(LAST_MODEL_FILE),
     }
 
-    torch.save(checkpoint, model_path)
+    with EXPERIMENT_SUMMARY_FILE.open("a", newline="", encoding="utf-8") as file:
+        writer = csv.DictWriter(file, fieldnames=fieldnames)
 
-    print(f"Modelo salvo em: {model_path}")
+        if not file_exists:
+            writer.writeheader()
+
+        writer.writerow(row)
+
+    print(f"Resumo do experimento salvo em: {EXPERIMENT_SUMMARY_FILE}")
 
 
 def main() -> None:
@@ -293,15 +422,12 @@ def main() -> None:
 
     torch.manual_seed(RANDOM_SEED)
 
-    train_dataset, eval_dataset, train_loader, validation_loader = create_data_loaders()
+    train_dataset, validation_dataset, train_loader, validation_loader = create_data_loaders()
 
     num_classes = len(train_dataset.classes)
 
-    if num_classes <= 1:
-        print("Atenção: o dataset possui apenas uma classe.")
-        print("Este treino servirá apenas para validar o pipeline inicial.")
-
-    print(f"Total de imagens: {len(train_dataset)}")
+    print(f"Total de imagens de treino: {len(train_dataset)}")
+    print(f"Total de imagens de validação: {len(validation_dataset)}")
     print(f"Classes: {train_dataset.classes}")
 
     device = get_device()
@@ -326,6 +452,15 @@ def main() -> None:
 
     training_history: list[dict[str, float | int]] = []
 
+    best_validation_loss = float("inf")
+    best_validation_accuracy = 0.0
+    best_epoch = 0
+
+    final_train_loss = 0.0
+    final_train_accuracy = 0.0
+    final_validation_loss = 0.0
+    final_validation_accuracy = 0.0
+
     for epoch in range(TRAIN_EPOCHS):
         train_loss, train_accuracy = train_one_epoch(
             model=model,
@@ -335,27 +470,38 @@ def main() -> None:
             device=device,
         )
 
-        validation_loss = 0.0
-        validation_accuracy = 0.0
-
-        message = (
-            f"Época {epoch + 1}/{TRAIN_EPOCHS} | "
-            f"Treino Loss: {train_loss:.4f} | "
-            f"Treino Acc: {train_accuracy:.4f}"
+        validation_loss, validation_accuracy = evaluate(
+            model=model,
+            validation_loader=validation_loader,
+            criterion=criterion,
+            device=device,
         )
 
-        if validation_loader is not None:
-            validation_loss, validation_accuracy = evaluate(
+        is_best_model = validation_loss < best_validation_loss
+
+        if is_best_model:
+            best_validation_loss = validation_loss
+            best_validation_accuracy = validation_accuracy
+            best_epoch = epoch + 1
+
+            best_checkpoint = build_checkpoint(
                 model=model,
-                validation_loader=validation_loader,
-                criterion=criterion,
-                device=device,
+                dataset=train_dataset,
+                num_classes=num_classes,
+                epoch=best_epoch,
+                validation_loss=validation_loss,
+                validation_accuracy=validation_accuracy,
             )
 
-            message += (
-                f" | Val Loss: {validation_loss:.4f} | "
-                f"Val Acc: {validation_accuracy:.4f}"
+            save_model_checkpoint(
+                checkpoint=best_checkpoint,
+                model_path=BEST_MODEL_FILE,
             )
+
+        final_train_loss = train_loss
+        final_train_accuracy = train_accuracy
+        final_validation_loss = validation_loss
+        final_validation_accuracy = validation_accuracy
 
         training_history.append(
             {
@@ -364,20 +510,59 @@ def main() -> None:
                 "train_accuracy": train_accuracy,
                 "validation_loss": validation_loss,
                 "validation_accuracy": validation_accuracy,
+                "is_best_model": int(is_best_model),
             }
         )
 
+        message = (
+            f"Época {epoch + 1}/{TRAIN_EPOCHS} | "
+            f"Treino Loss: {train_loss:.4f} | "
+            f"Treino Acc: {train_accuracy:.4f} | "
+            f"Val Loss: {validation_loss:.4f} | "
+            f"Val Acc: {validation_accuracy:.4f}"
+        )
+
+        if is_best_model:
+            message += " | BEST"
+
         print(message)
 
-    save_training_report(training_history)
-
-    save_model(
+    last_checkpoint = build_checkpoint(
         model=model,
-        model_path=MODEL_FILE,
-        dataset=eval_dataset,
+        dataset=train_dataset,
         num_classes=num_classes,
+        epoch=TRAIN_EPOCHS,
+        validation_loss=final_validation_loss,
+        validation_accuracy=final_validation_accuracy,
     )
 
+    save_model_checkpoint(
+        checkpoint=last_checkpoint,
+        model_path=LAST_MODEL_FILE,
+    )
+
+    save_training_report(training_history)
+    save_training_plots(training_history)
+
+    append_experiment_summary(
+        train_dataset=train_dataset,
+        validation_dataset=validation_dataset,
+        best_epoch=best_epoch,
+        best_validation_loss=best_validation_loss,
+        best_validation_accuracy=best_validation_accuracy,
+        final_train_loss=final_train_loss,
+        final_train_accuracy=final_train_accuracy,
+        final_validation_loss=final_validation_loss,
+        final_validation_accuracy=final_validation_accuracy,
+    )
+
+    print("-" * 80)
+    print("Resumo do treino")
+    print(f"Melhor época: {best_epoch}")
+    print(f"Melhor Val Loss: {best_validation_loss:.4f}")
+    print(f"Melhor Val Acc: {best_validation_accuracy:.4f}")
+    print(f"Modelo BEST: {BEST_MODEL_FILE}")
+    print(f"Modelo LAST: {LAST_MODEL_FILE}")
     print("Treino finalizado.")
 
 

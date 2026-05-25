@@ -341,8 +341,18 @@ TRAIN_EPOCHS = 30
 LEARNING_RATE = 0.0005
 WEIGHT_DECAY = 0.0001
 
-MODEL_FILE = MODELS_DIR / "astronomy_classifier_v1.pth"
+BEST_MODEL_FILE = MODELS_DIR / "astronomy_classifier_best.pth"
+LAST_MODEL_FILE = MODELS_DIR / "astronomy_classifier_last.pth"
+
+# Mantém compatibilidade com predict.py e evaluate.py
+MODEL_FILE = BEST_MODEL_FILE
+
 TRAINING_REPORT_FILE = OUTPUT_REPORTS_DIR / "training_report.csv"
+EXPERIMENT_SUMMARY_FILE = OUTPUT_REPORTS_DIR / "experiment_summary.csv"
+
+TRAINING_LOSS_PLOT_FILE = OUTPUT_IMAGES_DIR / "training_loss.png"
+TRAINING_ACCURACY_PLOT_FILE = OUTPUT_IMAGES_DIR / "training_accuracy.png"
+
 EVALUATION_REPORT_FILE = OUTPUT_REPORTS_DIR / "evaluation_report.csv"
 CONFUSION_MATRIX_FILE = OUTPUT_REPORTS_DIR / "confusion_matrix.csv"
 SKYVIEW_DOWNLOAD_REPORT_FILE = OUTPUT_REPORTS_DIR / "skyview_download_report.csv"
