@@ -42,6 +42,15 @@ DEFAULT_RADIUS = "0.05 deg"
 DEFAULT_LIMIT_OBSERVATIONS = 5
 DEFAULT_LIMIT_PRODUCTS = 10
 
+# Dados externos para teste manual do modelo
+EXTERNAL_DATA_DIR = DATA_DIR / "external"
+EXTERNAL_IMAGES_DIR = EXTERNAL_DATA_DIR / "images"
+EXTERNAL_LABELS_FILE = EXTERNAL_DATA_DIR / "external_labels.csv"
+
+EXTERNAL_EVALUATION_REPORT_FILE = OUTPUT_REPORTS_DIR / "external_evaluation_report.csv"
+EXTERNAL_CONFUSION_MATRIX_FILE = OUTPUT_REPORTS_DIR / "external_confusion_matrix.csv"
+
+EXTERNAL_EVALUATE_RUNS_LOG_FILE = EXPERIMENT_LOGS_DIR / "external_evaluate_runs.csv"
 
 # Configurações de pré-processamento
 DEFAULT_IMAGE_SIZE = 224
@@ -399,6 +408,8 @@ def ensure_directories() -> None:
         OUTPUT_IMAGES_DIR,
         OUTPUT_REPORTS_DIR,
         EXPERIMENT_LOGS_DIR,
+        EXTERNAL_DATA_DIR,
+        EXTERNAL_IMAGES_DIR,
     ]
 
     for directory in directories:
