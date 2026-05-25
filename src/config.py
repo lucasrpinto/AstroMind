@@ -16,6 +16,9 @@ REJECTED_IMAGES_DIR = PROCESSED_DATA_DIR / "rejected"
 
 LABELS_DIR = DATA_DIR / "labels"
 LABELS_FILE = LABELS_DIR / "labels.csv"
+TRAIN_LABELS_FILE = LABELS_DIR / "train_labels.csv"
+VAL_LABELS_FILE = LABELS_DIR / "val_labels.csv"
+TEST_LABELS_FILE = LABELS_DIR / "test_labels.csv"
 
 MODELS_DIR = BASE_DIR / "models"
 

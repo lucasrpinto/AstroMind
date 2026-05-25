@@ -15,8 +15,11 @@ from src.config import (
     WEIGHT_DECAY,
     DEFAULT_IMAGE_SIZE,
     TRAINING_REPORT_FILE,
+    TRAIN_LABELS_FILE,
+    VAL_LABELS_FILE,
     ensure_directories,
 )
+
 from src.dataset import (
     AstronomyImageDataset,
     get_eval_transforms,
@@ -87,68 +90,38 @@ def create_data_loaders() -> tuple[
     AstronomyImageDataset,
     AstronomyImageDataset,
     DataLoader,
-    DataLoader | None,
+    DataLoader,
 ]:
     """
-    Cria datasets e dataloaders para treino e validação.
+    Cria datasets e dataloaders usando splits fixos.
 
-    O dataset de treino usa augmentation.
-    O dataset de validação não usa augmentation.
+    O treino usa train_labels.csv.
+    A validação usa val_labels.csv.
     """
 
-    train_dataset_full = AstronomyImageDataset(
-        transform=get_train_transforms()
+    train_dataset = AstronomyImageDataset(
+        labels_file=TRAIN_LABELS_FILE,
+        transform=get_train_transforms(),
     )
 
-    eval_dataset_full = AstronomyImageDataset(
-        transform=get_eval_transforms()
+    validation_dataset = AstronomyImageDataset(
+        labels_file=VAL_LABELS_FILE,
+        transform=get_eval_transforms(),
     )
-
-    total_size = len(train_dataset_full)
-
-    if total_size == 0:
-        raise ValueError("O dataset está vazio.")
-
-    if total_size == 1:
-        train_loader = DataLoader(
-            train_dataset_full,
-            batch_size=TRAIN_BATCH_SIZE,
-            shuffle=True,
-        )
-
-        return train_dataset_full, eval_dataset_full, train_loader, None
-
-    validation_size = max(1, int(total_size * 0.2))
-    train_size = total_size - validation_size
-
-    generator = torch.Generator().manual_seed(RANDOM_SEED)
-
-    train_subset_raw, validation_subset_raw = random_split(
-        range(total_size),
-        [train_size, validation_size],
-        generator=generator,
-    )
-
-    train_indices = list(train_subset_raw)
-    validation_indices = list(validation_subset_raw)
-
-    train_subset = Subset(train_dataset_full, train_indices)
-    validation_subset = Subset(eval_dataset_full, validation_indices)
 
     train_loader = DataLoader(
-        train_subset,
+        train_dataset,
         batch_size=TRAIN_BATCH_SIZE,
         shuffle=True,
     )
 
     validation_loader = DataLoader(
-        validation_subset,
+        validation_dataset,
         batch_size=TRAIN_BATCH_SIZE,
         shuffle=False,
     )
 
-    return train_dataset_full, eval_dataset_full, train_loader, validation_loader
-
+    return train_dataset, validation_dataset, train_loader, validation_loader
 
 def calculate_accuracy(outputs: Tensor, labels: Tensor) -> float:
     """

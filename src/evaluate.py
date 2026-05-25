@@ -8,6 +8,7 @@ from src.config import (
     MODEL_FILE,
     EVALUATION_REPORT_FILE,
     CONFUSION_MATRIX_FILE,
+    TEST_LABELS_FILE,
     ensure_directories,
 )
 from src.dataset import AstronomyImageDataset, get_eval_transforms
@@ -107,7 +108,8 @@ def evaluate_model() -> list[dict[str, Any]]:
     idx_to_class = checkpoint["idx_to_class"]
 
     dataset = AstronomyImageDataset(
-        transform=get_eval_transforms()
+        labels_file=TEST_LABELS_FILE,
+        transform=get_eval_transforms(),
     )
 
     print(f"Total de imagens avaliadas: {len(dataset)}")
