@@ -1,12 +1,27 @@
 import argparse
 from pathlib import Path
 from typing import Any, cast
+import pandas as pd
 
 import torch
 from PIL import Image
 from torch import Tensor
 
-from src.config import MODEL_FILE, PROCESSED_IMAGES_DIR
+from src.config import (
+    MODEL_FILE,
+    PROCESSED_IMAGES_DIR,
+    PREDICT_RUNS_LOG_FILE,
+    LABELS_FILE,
+)
+
+from src.experiment_logger import (
+    append_csv_row,
+    compact_dict,
+    create_run_id,
+    format_float,
+    now_iso,
+)
+
 from src.dataset import get_default_transforms
 from src.train import SimpleAstronomyCNN, get_device
 
@@ -142,6 +157,86 @@ def parse_args() -> argparse.Namespace:
 
     return parser.parse_args()
 
+def infer_true_label_from_labels_file(image_path: Path) -> str:
+    """
+    Tenta descobrir a classe real da imagem usando o labels.csv.
+
+    Se a imagem não estiver no labels.csv, retorna vazio.
+    """
+
+    if not LABELS_FILE.exists():
+        return ""
+
+    labels_df = pd.read_csv(LABELS_FILE)
+
+    filename = image_path.name
+
+    matches = labels_df[labels_df["filename"] == filename]
+
+    if matches.empty:
+        return ""
+
+    return str(matches.iloc[0]["label"])
+
+
+def append_predict_run_log(
+    predict_run_id: str,
+    checkpoint: dict[str, Any],
+    image_path: Path,
+    predicted_class: str,
+    confidence: float,
+    all_probabilities: dict[str, float],
+    true_class: str,
+) -> None:
+    """
+    Registra uma linha acumulativa com o resultado da predição.
+    """
+
+    is_correct = ""
+
+    if true_class:
+        is_correct = str(true_class == predicted_class)
+
+    probabilities_formatted = {
+        class_name: format_float(probability)
+        for class_name, probability in all_probabilities.items()
+    }
+
+    fieldnames = [
+        "predict_run_id",
+        "train_run_id",
+        "created_at",
+        "model_file",
+        "model_epoch",
+        "image_path",
+        "true_class",
+        "predicted_class",
+        "confidence",
+        "is_correct",
+        "probabilities",
+    ]
+
+    row = {
+        "predict_run_id": predict_run_id,
+        "train_run_id": checkpoint.get("train_run_id", ""),
+        "created_at": now_iso(),
+        "model_file": str(MODEL_FILE),
+        "model_epoch": checkpoint.get("epoch", ""),
+        "image_path": str(image_path),
+        "true_class": true_class,
+        "predicted_class": predicted_class,
+        "confidence": format_float(confidence),
+        "is_correct": is_correct,
+        "probabilities": compact_dict(probabilities_formatted),
+    }
+
+    append_csv_row(
+        file_path=PREDICT_RUNS_LOG_FILE,
+        fieldnames=fieldnames,
+        row=row,
+    )
+
+    print(f"Log acumulativo da predição salvo em: {PREDICT_RUNS_LOG_FILE}")
 
 def main() -> None:
     """
@@ -149,6 +244,9 @@ def main() -> None:
     """
 
     args = parse_args()
+
+    predict_run_id = create_run_id("predict")
+    print(f"Predict Run ID: {predict_run_id}")
 
     device = get_device()
 
@@ -169,10 +267,26 @@ def main() -> None:
         device=device,
     )
 
+    true_class = infer_true_label_from_labels_file(image_path)
+
+    if true_class:
+        print(f"Classe real encontrada no labels.csv: {true_class}")
+        print(f"Acertou: {true_class == predicted_class}")
+
     print(f"Classe prevista: {predicted_class}")
     print(f"Confiança: {confidence * 100:.2f}%")
 
     print("Probabilidades por classe:")
+
+    append_predict_run_log(
+        predict_run_id=predict_run_id,
+        checkpoint=checkpoint,
+        image_path=image_path,
+        predicted_class=predicted_class,
+        confidence=confidence,
+        all_probabilities=all_probabilities,
+        true_class=true_class,
+    )
 
     for class_name, probability in all_probabilities.items():
         print(f"- {class_name}: {probability * 100:.2f}%")

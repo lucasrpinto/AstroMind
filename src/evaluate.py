@@ -9,8 +9,19 @@ from src.config import (
     EVALUATION_REPORT_FILE,
     CONFUSION_MATRIX_FILE,
     TEST_LABELS_FILE,
+    EVALUATE_RUNS_LOG_FILE,
+    TEST_LABELS_FILE,
     ensure_directories,
 )
+
+from src.experiment_logger import (
+    append_csv_row,
+    compact_dict,
+    create_run_id,
+    format_float,
+    now_iso,
+)
+
 from src.dataset import AstronomyImageDataset, get_eval_transforms
 from src.train import SimpleAstronomyCNN, get_device
 
@@ -91,7 +102,7 @@ def predict_tensor(
     return predicted_index, confidence, probabilities[0].cpu()
 
 
-def evaluate_model() -> list[dict[str, Any]]:
+def evaluate_model() -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """
     Avalia o modelo em todas as imagens do dataset aprovado.
     """
@@ -167,7 +178,7 @@ def evaluate_model() -> list[dict[str, Any]]:
     print(f"Acurácia geral: {accuracy * 100:.2f}%")
     print(f"Acertos: {correct_predictions}/{len(dataset)}")
 
-    return results
+    return results, checkpoint
 
 
 def save_evaluation_report(results: list[dict[str, Any]]) -> pd.DataFrame:
@@ -257,18 +268,98 @@ def print_errors(results_df: pd.DataFrame) -> None:
         )
 
 
+def append_evaluate_run_log(
+    evaluate_run_id: str,
+    checkpoint: dict[str, Any],
+    results_df: pd.DataFrame,
+) -> None:
+    """
+    Registra uma linha acumulativa com o resultado da avaliação.
+    """
+
+    total = len(results_df)
+    correct = int(results_df["is_correct"].sum())
+    errors = total - correct
+    accuracy = correct / total if total > 0 else 0.0
+
+    class_accuracy: dict[str, str] = {}
+
+    grouped = results_df.groupby("true_class")
+
+    for class_name, group in grouped:
+        class_total = len(group)
+        class_correct = int(group["is_correct"].sum())
+        class_acc = class_correct / class_total if class_total > 0 else 0.0
+
+        class_accuracy[str(class_name)] = (
+            f"{format_float(class_acc)}({class_correct}/{class_total})"
+        )
+
+    fieldnames = [
+        "evaluate_run_id",
+        "train_run_id",
+        "created_at",
+        "model_file",
+        "model_epoch",
+        "dataset_file",
+        "dataset_size",
+        "num_classes",
+        "classes",
+        "accuracy",
+        "correct",
+        "errors",
+        "class_accuracy",
+        "evaluation_report_file",
+        "confusion_matrix_file",
+    ]
+
+    row = {
+        "evaluate_run_id": evaluate_run_id,
+        "train_run_id": checkpoint.get("train_run_id", ""),
+        "created_at": now_iso(),
+        "model_file": str(MODEL_FILE),
+        "model_epoch": checkpoint.get("epoch", ""),
+        "dataset_file": str(TEST_LABELS_FILE),
+        "dataset_size": total,
+        "num_classes": len(checkpoint.get("classes", [])),
+        "classes": "|".join(checkpoint.get("classes", [])),
+        "accuracy": format_float(accuracy),
+        "correct": correct,
+        "errors": errors,
+        "class_accuracy": compact_dict(class_accuracy),
+        "evaluation_report_file": str(EVALUATION_REPORT_FILE),
+        "confusion_matrix_file": str(CONFUSION_MATRIX_FILE),
+    }
+
+    append_csv_row(
+        file_path=EVALUATE_RUNS_LOG_FILE,
+        fieldnames=fieldnames,
+        row=row,
+    )
+
+    print(f"Log acumulativo da avaliação salvo em: {EVALUATE_RUNS_LOG_FILE}")
+
 def main() -> None:
     """
     Executa a avaliação completa do modelo.
     """
 
-    results = evaluate_model()
+    evaluate_run_id = create_run_id("evaluate")
+    print(f"Evaluate Run ID: {evaluate_run_id}")
+
+    results, checkpoint = evaluate_model()
 
     results_df = save_evaluation_report(results)
 
     save_confusion_matrix(results_df)
     print_class_accuracy(results_df)
     print_errors(results_df)
+
+    append_evaluate_run_log(
+        evaluate_run_id=evaluate_run_id,
+        checkpoint=checkpoint,
+        results_df=results_df,
+    )
 
     print("Avaliação finalizada.")
 

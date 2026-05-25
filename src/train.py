@@ -1,5 +1,3 @@
-# src/train.py
-
 import csv
 from collections import Counter
 from datetime import datetime
@@ -25,12 +23,22 @@ from src.config import (
     TRAINING_ACCURACY_PLOT_FILE,
     TRAIN_LABELS_FILE,
     VAL_LABELS_FILE,
+    TRAIN_RUNS_LOG_FILE,
     ensure_directories,
 )
+
 from src.dataset import (
     AstronomyImageDataset,
     get_eval_transforms,
     get_train_transforms,
+)
+
+from src.experiment_logger import (
+    append_csv_row,
+    compact_dict,
+    create_run_id,
+    format_float,
+    now_iso,
 )
 
 
@@ -252,6 +260,7 @@ def build_checkpoint(
     epoch: int,
     validation_loss: float,
     validation_accuracy: float,
+    train_run_id: str,
 ) -> dict:
     """
     Monta o checkpoint do modelo.
@@ -267,6 +276,7 @@ def build_checkpoint(
         "epoch": epoch,
         "validation_loss": validation_loss,
         "validation_accuracy": validation_accuracy,
+        "train_run_id": train_run_id,
     }
 
 
@@ -413,12 +423,97 @@ def append_experiment_summary(
     print(f"Resumo do experimento salvo em: {EXPERIMENT_SUMMARY_FILE}")
 
 
+def append_train_run_log(
+    train_run_id: str,
+    train_dataset: AstronomyImageDataset,
+    validation_dataset: AstronomyImageDataset,
+    best_epoch: int,
+    best_validation_loss: float,
+    best_validation_accuracy: float,
+    final_train_loss: float,
+    final_train_accuracy: float,
+    final_validation_loss: float,
+    final_validation_accuracy: float,
+    class_weights: Tensor,
+) -> None:
+    """
+    Registra uma linha acumulativa com o resultado da rodada de treino.
+    """
+
+    fieldnames = [
+        "train_run_id",
+        "created_at",
+        "train_size",
+        "validation_size",
+        "num_classes",
+        "classes",
+        "epochs",
+        "batch_size",
+        "learning_rate",
+        "weight_decay",
+        "best_epoch",
+        "best_validation_loss",
+        "best_validation_accuracy",
+        "final_train_loss",
+        "final_train_accuracy",
+        "final_validation_loss",
+        "final_validation_accuracy",
+        "class_weights",
+        "best_model_file",
+        "last_model_file",
+        "training_report_file",
+        "training_loss_plot_file",
+        "training_accuracy_plot_file",
+    ]
+
+    class_weights_dict = {
+        class_name: format_float(float(class_weights[index].item()))
+        for index, class_name in enumerate(train_dataset.classes)
+    }
+
+    row = {
+        "train_run_id": train_run_id,
+        "created_at": now_iso(),
+        "train_size": len(train_dataset),
+        "validation_size": len(validation_dataset),
+        "num_classes": len(train_dataset.classes),
+        "classes": "|".join(train_dataset.classes),
+        "epochs": TRAIN_EPOCHS,
+        "batch_size": TRAIN_BATCH_SIZE,
+        "learning_rate": LEARNING_RATE,
+        "weight_decay": WEIGHT_DECAY,
+        "best_epoch": best_epoch,
+        "best_validation_loss": format_float(best_validation_loss),
+        "best_validation_accuracy": format_float(best_validation_accuracy),
+        "final_train_loss": format_float(final_train_loss),
+        "final_train_accuracy": format_float(final_train_accuracy),
+        "final_validation_loss": format_float(final_validation_loss),
+        "final_validation_accuracy": format_float(final_validation_accuracy),
+        "class_weights": compact_dict(class_weights_dict),
+        "best_model_file": str(BEST_MODEL_FILE),
+        "last_model_file": str(LAST_MODEL_FILE),
+        "training_report_file": str(TRAINING_REPORT_FILE),
+        "training_loss_plot_file": str(TRAINING_LOSS_PLOT_FILE),
+        "training_accuracy_plot_file": str(TRAINING_ACCURACY_PLOT_FILE),
+    }
+
+    append_csv_row(
+        file_path=TRAIN_RUNS_LOG_FILE,
+        fieldnames=fieldnames,
+        row=row,
+    )
+
+    print(f"Log acumulativo do treino salvo em: {TRAIN_RUNS_LOG_FILE}")
+
 def main() -> None:
     """
     Executa o treino do modelo.
     """
 
     ensure_directories()
+
+    train_run_id = create_run_id("train")
+    print(f"Train Run ID: {train_run_id}")
 
     torch.manual_seed(RANDOM_SEED)
 
@@ -491,6 +586,7 @@ def main() -> None:
                 epoch=best_epoch,
                 validation_loss=validation_loss,
                 validation_accuracy=validation_accuracy,
+                train_run_id=train_run_id,
             )
 
             save_model_checkpoint(
@@ -534,6 +630,7 @@ def main() -> None:
         epoch=TRAIN_EPOCHS,
         validation_loss=final_validation_loss,
         validation_accuracy=final_validation_accuracy,
+        train_run_id=train_run_id,
     )
 
     save_model_checkpoint(
@@ -554,6 +651,20 @@ def main() -> None:
         final_train_accuracy=final_train_accuracy,
         final_validation_loss=final_validation_loss,
         final_validation_accuracy=final_validation_accuracy,
+    )
+
+    append_train_run_log(
+        train_run_id=train_run_id,
+        train_dataset=train_dataset,
+        validation_dataset=validation_dataset,
+        best_epoch=best_epoch,
+        best_validation_loss=best_validation_loss,
+        best_validation_accuracy=best_validation_accuracy,
+        final_train_loss=final_train_loss,
+        final_train_accuracy=final_train_accuracy,
+        final_validation_loss=final_validation_loss,
+        final_validation_accuracy=final_validation_accuracy,
+        class_weights=class_weights,
     )
 
     print("-" * 80)

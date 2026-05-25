@@ -22,6 +22,13 @@ TEST_LABELS_FILE = LABELS_DIR / "test_labels.csv"
 
 MODELS_DIR = BASE_DIR / "models"
 
+# Logs versionáveis dos experimentos
+EXPERIMENT_LOGS_DIR = BASE_DIR / "experiment_logs"
+
+TRAIN_RUNS_LOG_FILE = EXPERIMENT_LOGS_DIR / "train_runs.csv"
+EVALUATE_RUNS_LOG_FILE = EXPERIMENT_LOGS_DIR / "evaluate_runs.csv"
+PREDICT_RUNS_LOG_FILE = EXPERIMENT_LOGS_DIR / "predict_runs.csv"
+
 OUTPUTS_DIR = BASE_DIR / "outputs"
 OUTPUT_IMAGES_DIR = OUTPUTS_DIR / "images"
 OUTPUT_REPORTS_DIR = OUTPUTS_DIR / "reports"
@@ -391,6 +398,7 @@ def ensure_directories() -> None:
         MODELS_DIR,
         OUTPUT_IMAGES_DIR,
         OUTPUT_REPORTS_DIR,
+        EXPERIMENT_LOGS_DIR,
     ]
 
     for directory in directories:
