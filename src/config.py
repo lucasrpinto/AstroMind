@@ -48,6 +48,8 @@ DEFAULT_LIMIT_PRODUCTS = 10
 # Dados externos para teste manual do modelo
 EXTERNAL_DATA_DIR = DATA_DIR / "external"
 EXTERNAL_IMAGES_DIR = EXTERNAL_DATA_DIR / "images"
+EXTERNAL_ERROR_IMAGES_DIR = OUTPUT_IMAGES_DIR / "external_errors"
+
 EXTERNAL_LABELS_FILE = EXTERNAL_DATA_DIR / "external_labels.csv"
 
 EXTERNAL_EVALUATION_REPORT_FILE = OUTPUT_REPORTS_DIR / "external_evaluation_report.csv"
@@ -521,6 +523,7 @@ def ensure_directories() -> None:
         EXTERNAL_DATA_DIR,
         EXTERNAL_IMAGES_DIR,
         DOCS_DIR,
+        EXTERNAL_ERROR_IMAGES_DIR,
     ]
 
     for directory in directories:
