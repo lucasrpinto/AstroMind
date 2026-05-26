@@ -31,7 +31,7 @@ def read_csv_if_exists(path: Path) -> pd.DataFrame:
     if not path.exists():
         return pd.DataFrame()
 
-<<<<<<< HEAD
+
     try:
         return pd.read_csv(
             path,
@@ -80,10 +80,10 @@ def read_csv_if_exists(path: Path) -> pd.DataFrame:
             normalized_rows,
             columns=normalized_header,
         )
-=======
+
     return pd.read_csv(path)
 
->>>>>>> 609ac800afd35c6249e3ac61bcabe2e11499dfd2
+
 
 def format_percent(value) -> str:
     """
@@ -139,23 +139,22 @@ def summarize_train_runs(lines: list[str], train_df: pd.DataFrame) -> None:
         if column in train_df.columns
     ]
 
-<<<<<<< HEAD
+
     lines.append("| Run ID | Data | Modelo | Treino | Validação | Épocas | Melhor época | Best Val Loss | Best Val Acc | Final Train Acc | Final Val Acc |")
     lines.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
-=======
+
     lines.append("| Run ID | Data | Treino | Validação | Épocas | Melhor época | Best Val Loss | Best Val Acc | Final Train Acc | Final Val Acc |")
     lines.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
->>>>>>> 609ac800afd35c6249e3ac61bcabe2e11499dfd2
+
 
     for _, row in train_df.iterrows():
         lines.append(
             "| "
             f"{row.get('train_run_id', '')} | "
             f"{row.get('created_at', '')} | "
-<<<<<<< HEAD
+
             f"{row.get('model_version', '')} | "
-=======
->>>>>>> 609ac800afd35c6249e3ac61bcabe2e11499dfd2
+
             f"{row.get('train_size', '')} | "
             f"{row.get('validation_size', '')} | "
             f"{row.get('epochs', '')} | "
@@ -177,10 +176,9 @@ def summarize_train_runs(lines: list[str], train_df: pd.DataFrame) -> None:
         lines.append("")
         lines.append(f"- Run ID: `{best_row.get('train_run_id', '')}`")
         lines.append(f"- Data: {best_row.get('created_at', '')}")
-<<<<<<< HEAD
+
         lines.append(f"- Modelo: {best_row.get('model_version', '')}")
-=======
->>>>>>> 609ac800afd35c6249e3ac61bcabe2e11499dfd2
+
         lines.append(f"- Melhor época: {best_row.get('best_epoch', '')}")
         lines.append(f"- Melhor validation accuracy: {format_percent(best_row.get('best_validation_accuracy', ''))}")
         lines.append(f"- Melhor validation loss: {best_row.get('best_validation_loss', '')}")
