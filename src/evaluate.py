@@ -23,7 +23,7 @@ from src.experiment_logger import (
 )
 
 from src.dataset import AstronomyImageDataset, get_eval_transforms
-from src.train import SimpleAstronomyCNN, get_device
+from src.train import AstroMindCNNV1, get_device
 
 
 def load_checkpoint(device: torch.device) -> dict[str, Any]:
@@ -45,14 +45,14 @@ def load_checkpoint(device: torch.device) -> dict[str, Any]:
 def load_model(
     checkpoint: dict[str, Any],
     device: torch.device,
-) -> SimpleAstronomyCNN:
+) -> AstroMindCNNV1:
     """
     Recria a CNN e carrega os pesos treinados.
     """
 
     num_classes = int(checkpoint["num_classes"])
 
-    model = SimpleAstronomyCNN(num_classes=num_classes)
+    model = AstroMindCNNV1(num_classes=num_classes)
 
     model.load_state_dict(checkpoint["model_state_dict"])
     model = model.to(device)
@@ -82,7 +82,7 @@ def get_class_name(
 
 @torch.no_grad()
 def predict_tensor(
-    model: SimpleAstronomyCNN,
+    model: AstroMindCNNV1,
     image_tensor: Tensor,
     device: torch.device,
 ) -> tuple[int, float, Tensor]:
@@ -296,26 +296,27 @@ def append_evaluate_run_log(
         )
 
     fieldnames = [
-        "evaluate_run_id",
+        "external_evaluate_run_id",
         "train_run_id",
         "created_at",
+        "model_version",
         "model_file",
         "model_epoch",
-        "dataset_file",
-        "dataset_size",
-        "num_classes",
-        "classes",
+        "total_images",
+        "labeled_images",
         "accuracy",
         "correct",
         "errors",
         "class_accuracy",
-        "evaluation_report_file",
-        "confusion_matrix_file",
+        "external_labels_file",
+        "external_report_file",
+        "external_confusion_matrix_file",
     ]
 
     row = {
         "evaluate_run_id": evaluate_run_id,
         "train_run_id": checkpoint.get("train_run_id", ""),
+        "model_version": checkpoint.get("model_version", ""),
         "created_at": now_iso(),
         "model_file": str(MODEL_FILE),
         "model_epoch": checkpoint.get("epoch", ""),

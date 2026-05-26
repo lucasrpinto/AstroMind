@@ -14,6 +14,9 @@ PROCESSED_IMAGES_DIR = PROCESSED_DATA_DIR / "images"
 PROCESSED_ARRAYS_DIR = PROCESSED_DATA_DIR / "arrays"
 REJECTED_IMAGES_DIR = PROCESSED_DATA_DIR / "rejected"
 
+DOCS_DIR = BASE_DIR / "docs"
+EXPERIMENT_HISTORY_MARKDOWN_FILE = DOCS_DIR / "experiment_history.md"
+
 LABELS_DIR = DATA_DIR / "labels"
 LABELS_FILE = LABELS_DIR / "labels.csv"
 TRAIN_LABELS_FILE = LABELS_DIR / "train_labels.csv"
@@ -448,6 +451,8 @@ EXTERNAL_SKYVIEW_TARGETS = [
 # Configurações de treino
 RANDOM_SEED = 42
 
+MODEL_VERSION = "AstroMindCNNV1"
+
 TRAIN_BATCH_SIZE = 4
 TRAIN_EPOCHS = 30
 LEARNING_RATE = 0.0005
@@ -506,6 +511,7 @@ def ensure_directories() -> None:
         EXPERIMENT_LOGS_DIR,
         EXTERNAL_DATA_DIR,
         EXTERNAL_IMAGES_DIR,
+        DOCS_DIR,
     ]
 
     for directory in directories:

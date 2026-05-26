@@ -30,7 +30,7 @@ from src.experiment_logger import (
     format_float,
     now_iso,
 )
-from src.train import SimpleAstronomyCNN, get_device
+from src.train import AstroMindCNNV1, get_device
 
 
 def load_checkpoint(device: torch.device) -> dict[str, Any]:
@@ -52,14 +52,14 @@ def load_checkpoint(device: torch.device) -> dict[str, Any]:
 def load_model(
     checkpoint: dict[str, Any],
     device: torch.device,
-) -> SimpleAstronomyCNN:
+) -> AstroMindCNNV1:
     """
     Recria o modelo e carrega os pesos treinados.
     """
 
     num_classes = int(checkpoint["num_classes"])
 
-    model = SimpleAstronomyCNN(num_classes=num_classes)
+    model = AstroMindCNNV1(num_classes=num_classes)
     model.load_state_dict(checkpoint["model_state_dict"])
 
     model = model.to(device)
@@ -211,7 +211,7 @@ def load_image_tensor(image_path: Path) -> Tensor:
 
 @torch.no_grad()
 def predict_external_image(
-    model: SimpleAstronomyCNN,
+    model: AstroMindCNNV1,
     image_tensor: Tensor,
     checkpoint: dict[str, Any],
     device: torch.device,

@@ -1,6 +1,7 @@
 # Dados baixados
 data/raw/
 data/processed/
+data/external/images
 
 # Modelos treinados
 models/

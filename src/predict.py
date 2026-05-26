@@ -23,7 +23,7 @@ from src.experiment_logger import (
 )
 
 from src.dataset import get_default_transforms
-from src.train import SimpleAstronomyCNN, get_device
+from src.train import AstroMindCNNV1, get_device
 
 
 def load_checkpoint(model_path: Path, device: torch.device) -> dict[str, Any]:
@@ -45,14 +45,14 @@ def load_checkpoint(model_path: Path, device: torch.device) -> dict[str, Any]:
 def load_model(
     checkpoint: dict[str, Any],
     device: torch.device,
-) -> SimpleAstronomyCNN:
+) -> AstroMindCNNV1:
     """
     Recria a arquitetura do modelo e carrega os pesos treinados.
     """
 
     num_classes = int(checkpoint["num_classes"])
 
-    model = SimpleAstronomyCNN(num_classes=num_classes)
+    model = AstroMindCNNV1(num_classes=num_classes)
 
     model.load_state_dict(checkpoint["model_state_dict"])
     model = model.to(device)
@@ -84,7 +84,7 @@ def load_image(image_path: Path) -> Tensor:
 
 @torch.no_grad()
 def predict_image(
-    model: SimpleAstronomyCNN,
+    model: AstroMindCNNV1,
     image_tensor: Tensor,
     checkpoint: dict[str, Any],
     device: torch.device,
@@ -206,6 +206,7 @@ def append_predict_run_log(
         "predict_run_id",
         "train_run_id",
         "created_at",
+        "model_version",
         "model_file",
         "model_epoch",
         "image_path",
@@ -257,6 +258,9 @@ def main() -> None:
 
     checkpoint = load_checkpoint(MODEL_FILE, device)
     model = load_model(checkpoint, device)
+
+    print(f"Versão do modelo: {checkpoint.get('model_version', 'não informado')}")
+    print(f"Train Run ID: {checkpoint.get('train_run_id', 'não informado')}")
 
     image_tensor = load_image(image_path)
 

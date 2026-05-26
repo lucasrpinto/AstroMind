@@ -24,6 +24,7 @@ from src.config import (
     TRAIN_LABELS_FILE,
     VAL_LABELS_FILE,
     TRAIN_RUNS_LOG_FILE,
+    MODEL_VERSION,
     ensure_directories,
 )
 
@@ -42,9 +43,13 @@ from src.experiment_logger import (
 )
 
 
-class SimpleAstronomyCNN(nn.Module):
+class AstroMindCNNV1(nn.Module):
     """
-    CNN simples para classificar imagens astronômicas.
+    Primeira versão da CNN própria do projeto AstroMind.
+
+    Esta arquitetura foi criada do zero, sem uso de modelos pré-treinados.
+    Ela representa a versão inicial da CNN do projeto e servirá como base
+    para comparação com versões futuras, como AstroMindCNNV2 e AstroMindCNNV3.
     """
 
     def __init__(self, num_classes: int) -> None:
@@ -277,6 +282,7 @@ def build_checkpoint(
         "validation_loss": validation_loss,
         "validation_accuracy": validation_accuracy,
         "train_run_id": train_run_id,
+        "model_version": MODEL_VERSION,
     }
 
 
@@ -372,6 +378,7 @@ def append_experiment_summary(
 
     fieldnames = [
         "created_at",
+        "model_version",
         "train_size",
         "validation_size",
         "num_classes",
@@ -394,6 +401,7 @@ def append_experiment_summary(
     row = {
         "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "train_size": len(train_dataset),
+        "model_version": MODEL_VERSION,
         "validation_size": len(validation_dataset),
         "num_classes": len(train_dataset.classes),
         "classes": "|".join(train_dataset.classes),
@@ -443,6 +451,7 @@ def append_train_run_log(
     fieldnames = [
         "train_run_id",
         "created_at",
+        "model_version",
         "train_size",
         "validation_size",
         "num_classes",
@@ -474,6 +483,7 @@ def append_train_run_log(
     row = {
         "train_run_id": train_run_id,
         "created_at": now_iso(),
+        "model_version": MODEL_VERSION,
         "train_size": len(train_dataset),
         "validation_size": len(validation_dataset),
         "num_classes": len(train_dataset.classes),
@@ -524,12 +534,13 @@ def main() -> None:
     print(f"Total de imagens de treino: {len(train_dataset)}")
     print(f"Total de imagens de validação: {len(validation_dataset)}")
     print(f"Classes: {train_dataset.classes}")
+    print(f"Versão do modelo: {MODEL_VERSION}")
 
     device = get_device()
 
     print(f"Dispositivo usado: {device}")
 
-    model = SimpleAstronomyCNN(num_classes=num_classes)
+    model = AstroMindCNNV1(num_classes=num_classes)
     model = model.to(device)
 
     class_weights = calculate_class_weights(
