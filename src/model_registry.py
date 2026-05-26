@@ -47,41 +47,6 @@ class AstroMindCNNV1(nn.Module):
 
         return output
 
-
-class ConvBlock(nn.Module):
-    """
-    Bloco convolucional usado na AstroMindCNNV2.
-
-    Cada bloco usa duas convoluções antes do MaxPool.
-    Isso permite que a rede aprenda padrões visuais mais ricos
-    antes de reduzir a dimensão da imagem.
-    """
-
-    def __init__(
-        self,
-        in_channels: int,
-        out_channels: int,
-        dropout: float,
-    ) -> None:
-        super().__init__()
-
-        self.block = nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
-            nn.BatchNorm2d(out_channels),
-            nn.ReLU(),
-
-            nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
-            nn.BatchNorm2d(out_channels),
-            nn.ReLU(),
-
-            nn.MaxPool2d(kernel_size=2),
-            nn.Dropout2d(p=dropout),
-        )
-
-    def forward(self, image: Tensor) -> Tensor:
-        return self.block(image)
-
-
 class AstroMindCNNV2(nn.Module):
     """
     Segunda versão da CNN própria do projeto AstroMind.
@@ -122,10 +87,87 @@ class AstroMindCNNV2(nn.Module):
 
         return output
 
+class AstroMindCNNV21(nn.Module):
+    """
+    Subversão da AstroMindCNNV2.
+
+    Objetivo:
+    reduzir underfitting observado na V2, mantendo a mesma base arquitetural,
+    mas com menor regularização por dropout.
+
+    Diferenças em relação à V2:
+    - Dropout2d menor nos blocos convolucionais;
+    - Dropout menor no classificador;
+    - Mantém blocos convolucionais duplos;
+    - Mantém treinamento do zero, sem modelo pré-treinado.
+    """
+
+    def __init__(self, num_classes: int) -> None:
+        super().__init__()
+
+        self.features = nn.Sequential(
+            ConvBlock(3, 32, dropout=0.02),
+            ConvBlock(32, 64, dropout=0.05),
+            ConvBlock(64, 128, dropout=0.08),
+            ConvBlock(128, 256, dropout=0.10),
+        )
+
+        self.classifier = nn.Sequential(
+            nn.AdaptiveAvgPool2d((1, 1)),
+            nn.Flatten(),
+
+            nn.Dropout(p=0.25),
+            nn.Linear(256, 128),
+            nn.ReLU(),
+
+            nn.Dropout(p=0.15),
+            nn.Linear(128, num_classes),
+        )
+
+    def forward(self, image: Tensor) -> Tensor:
+        features = self.features(image)
+        output = self.classifier(features)
+
+        return output
+
+class ConvBlock(nn.Module):
+    """
+    Bloco convolucional usado na AstroMindCNNV2.
+
+    Cada bloco usa duas convoluções antes do MaxPool.
+    Isso permite que a rede aprenda padrões visuais mais ricos
+    antes de reduzir a dimensão da imagem.
+    """
+
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        dropout: float,
+    ) -> None:
+        super().__init__()
+
+        self.block = nn.Sequential(
+            nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(),
+
+            nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(),
+
+            nn.MaxPool2d(kernel_size=2),
+            nn.Dropout2d(p=dropout),
+        )
+
+    def forward(self, image: Tensor) -> Tensor:
+        return self.block(image)
+
 
 MODEL_REGISTRY = {
     "AstroMindCNNV1": AstroMindCNNV1,
     "AstroMindCNNV2": AstroMindCNNV2,
+    "AstroMindCNNV2.1": AstroMindCNNV21,
 }
 
 
