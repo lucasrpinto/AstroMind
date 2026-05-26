@@ -8,6 +8,8 @@ import torch
 from torch import Tensor, nn
 from torch.utils.data import DataLoader
 
+from src.model_registry import build_model
+
 from src.config import (
     BEST_MODEL_FILE,
     LAST_MODEL_FILE,
@@ -534,13 +536,18 @@ def main() -> None:
     print(f"Total de imagens de treino: {len(train_dataset)}")
     print(f"Total de imagens de validação: {len(validation_dataset)}")
     print(f"Classes: {train_dataset.classes}")
-    print(f"Versão do modelo: {MODEL_VERSION}")
 
     device = get_device()
 
     print(f"Dispositivo usado: {device}")
 
-    model = AstroMindCNNV1(num_classes=num_classes)
+    print(f"Versão do modelo: {MODEL_VERSION}")
+
+    model = build_model(
+        num_classes=num_classes,
+        model_version=MODEL_VERSION,
+    )
+
     model = model.to(device)
 
     class_weights = calculate_class_weights(

@@ -30,7 +30,11 @@ from src.experiment_logger import (
     format_float,
     now_iso,
 )
-from src.train import AstroMindCNNV1, get_device
+
+from torch import nn
+
+from src.model_registry import build_model
+from src.train import get_device
 
 
 def load_checkpoint(device: torch.device) -> dict[str, Any]:
@@ -52,18 +56,24 @@ def load_checkpoint(device: torch.device) -> dict[str, Any]:
 def load_model(
     checkpoint: dict[str, Any],
     device: torch.device,
-) -> AstroMindCNNV1:
+) -> nn.Module:
     """
-    Recria o modelo e carrega os pesos treinados.
+    Recria o modelo com base na versão salva no checkpoint.
     """
 
     num_classes = int(checkpoint["num_classes"])
+    model_version = str(checkpoint.get("model_version", "AstroMindCNNV1"))
 
-    model = AstroMindCNNV1(num_classes=num_classes)
+    model = build_model(
+        num_classes=num_classes,
+        model_version=model_version,
+    )
+
     model.load_state_dict(checkpoint["model_state_dict"])
-
     model = model.to(device)
     model.eval()
+
+    print(f"Versão do modelo carregado: {model_version}")
 
     return model
 
@@ -211,7 +221,7 @@ def load_image_tensor(image_path: Path) -> Tensor:
 
 @torch.no_grad()
 def predict_external_image(
-    model: AstroMindCNNV1,
+    model: nn.Module,
     image_tensor: Tensor,
     checkpoint: dict[str, Any],
     device: torch.device,
