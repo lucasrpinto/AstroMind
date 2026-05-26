@@ -8,34 +8,35 @@ import torch
 from torch import Tensor, nn
 from torch.utils.data import DataLoader
 
-from src.model_registry import build_model
-
 from src.config import (
     BEST_MODEL_FILE,
     LAST_MODEL_FILE,
+    MODEL_VERSION,
     RANDOM_SEED,
     TRAIN_BATCH_SIZE,
     TRAIN_EPOCHS,
     LEARNING_RATE,
     WEIGHT_DECAY,
+    LR_SCHEDULER_FACTOR,
+    LR_SCHEDULER_PATIENCE,
+    MIN_LEARNING_RATE,
+    EARLY_STOPPING_PATIENCE,
     DEFAULT_IMAGE_SIZE,
     TRAINING_REPORT_FILE,
     EXPERIMENT_SUMMARY_FILE,
     TRAINING_LOSS_PLOT_FILE,
     TRAINING_ACCURACY_PLOT_FILE,
+    TRAINING_LR_PLOT_FILE,
     TRAIN_LABELS_FILE,
     VAL_LABELS_FILE,
     TRAIN_RUNS_LOG_FILE,
-    MODEL_VERSION,
     ensure_directories,
 )
-
 from src.dataset import (
     AstronomyImageDataset,
     get_eval_transforms,
     get_train_transforms,
 )
-
 from src.experiment_logger import (
     append_csv_row,
     compact_dict,
@@ -43,58 +44,7 @@ from src.experiment_logger import (
     format_float,
     now_iso,
 )
-
-
-class AstroMindCNNV1(nn.Module):
-    """
-    Primeira versão da CNN própria do projeto AstroMind.
-
-    Esta arquitetura foi criada do zero, sem uso de modelos pré-treinados.
-    Ela representa a versão inicial da CNN do projeto e servirá como base
-    para comparação com versões futuras, como AstroMindCNNV2 e AstroMindCNNV3.
-    """
-
-    def __init__(self, num_classes: int) -> None:
-        super().__init__()
-
-        self.features = nn.Sequential(
-            nn.Conv2d(3, 16, kernel_size=3, padding=1),
-            nn.BatchNorm2d(16),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2),
-
-            nn.Conv2d(16, 32, kernel_size=3, padding=1),
-            nn.BatchNorm2d(32),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2),
-
-            nn.Conv2d(32, 64, kernel_size=3, padding=1),
-            nn.BatchNorm2d(64),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2),
-
-            nn.Conv2d(64, 128, kernel_size=3, padding=1),
-            nn.BatchNorm2d(128),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2),
-        )
-
-        self.classifier = nn.Sequential(
-            nn.AdaptiveAvgPool2d((1, 1)),
-            nn.Flatten(),
-            nn.Dropout(p=0.3),
-            nn.Linear(128, num_classes),
-        )
-
-    def forward(self, image: Tensor) -> Tensor:
-        """
-        Executa a predição do modelo.
-        """
-
-        features = self.features(image)
-        output = self.classifier(features)
-
-        return output
+from src.model_registry import build_model
 
 
 def get_device() -> torch.device:
@@ -116,9 +66,6 @@ def create_data_loaders() -> tuple[
 ]:
     """
     Cria datasets e dataloaders usando splits fixos.
-
-    O treino usa train_labels.csv.
-    A validação usa val_labels.csv.
     """
 
     train_dataset = AstronomyImageDataset(
@@ -275,6 +222,7 @@ def build_checkpoint(
 
     return {
         "model_state_dict": model.state_dict(),
+        "model_version": MODEL_VERSION,
         "classes": dataset.classes,
         "class_to_idx": dataset.class_to_idx,
         "idx_to_class": dataset.idx_to_class,
@@ -284,7 +232,6 @@ def build_checkpoint(
         "validation_loss": validation_loss,
         "validation_accuracy": validation_accuracy,
         "train_run_id": train_run_id,
-        "model_version": MODEL_VERSION,
     }
 
 
@@ -307,6 +254,7 @@ def save_training_report(rows: list[dict[str, float | int]]) -> None:
 
     fieldnames = [
         "epoch",
+        "learning_rate",
         "train_loss",
         "train_accuracy",
         "validation_loss",
@@ -324,7 +272,7 @@ def save_training_report(rows: list[dict[str, float | int]]) -> None:
 
 def save_training_plots(rows: list[dict[str, float | int]]) -> None:
     """
-    Gera gráficos de loss e accuracy.
+    Gera gráficos de loss, accuracy e learning rate.
     """
 
     epochs = [int(row["epoch"]) for row in rows]
@@ -334,6 +282,8 @@ def save_training_plots(rows: list[dict[str, float | int]]) -> None:
 
     train_accuracy = [float(row["train_accuracy"]) for row in rows]
     validation_accuracy = [float(row["validation_accuracy"]) for row in rows]
+
+    learning_rates = [float(row["learning_rate"]) for row in rows]
 
     plt.figure()
     plt.plot(epochs, train_loss, label="Train Loss")
@@ -357,8 +307,19 @@ def save_training_plots(rows: list[dict[str, float | int]]) -> None:
     plt.savefig(TRAINING_ACCURACY_PLOT_FILE, bbox_inches="tight")
     plt.close()
 
+    plt.figure()
+    plt.plot(epochs, learning_rates, label="Learning Rate")
+    plt.xlabel("Época")
+    plt.ylabel("Learning Rate")
+    plt.title("Evolução do Learning Rate")
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(TRAINING_LR_PLOT_FILE, bbox_inches="tight")
+    plt.close()
+
     print(f"Gráfico de loss salvo em: {TRAINING_LOSS_PLOT_FILE}")
     print(f"Gráfico de acurácia salvo em: {TRAINING_ACCURACY_PLOT_FILE}")
+    print(f"Gráfico de learning rate salvo em: {TRAINING_LR_PLOT_FILE}")
 
 
 def append_experiment_summary(
@@ -371,6 +332,8 @@ def append_experiment_summary(
     final_train_accuracy: float,
     final_validation_loss: float,
     final_validation_accuracy: float,
+    final_learning_rate: float,
+    stopped_epoch: int,
 ) -> None:
     """
     Adiciona uma linha no resumo de experimentos.
@@ -386,9 +349,15 @@ def append_experiment_summary(
         "num_classes",
         "classes",
         "epochs",
+        "stopped_epoch",
         "batch_size",
         "learning_rate",
+        "final_learning_rate",
         "weight_decay",
+        "lr_scheduler_factor",
+        "lr_scheduler_patience",
+        "min_learning_rate",
+        "early_stopping_patience",
         "best_epoch",
         "best_validation_loss",
         "best_validation_accuracy",
@@ -402,15 +371,21 @@ def append_experiment_summary(
 
     row = {
         "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "train_size": len(train_dataset),
         "model_version": MODEL_VERSION,
+        "train_size": len(train_dataset),
         "validation_size": len(validation_dataset),
         "num_classes": len(train_dataset.classes),
         "classes": "|".join(train_dataset.classes),
         "epochs": TRAIN_EPOCHS,
+        "stopped_epoch": stopped_epoch,
         "batch_size": TRAIN_BATCH_SIZE,
         "learning_rate": LEARNING_RATE,
+        "final_learning_rate": round(final_learning_rate, 8),
         "weight_decay": WEIGHT_DECAY,
+        "lr_scheduler_factor": LR_SCHEDULER_FACTOR,
+        "lr_scheduler_patience": LR_SCHEDULER_PATIENCE,
+        "min_learning_rate": MIN_LEARNING_RATE,
+        "early_stopping_patience": EARLY_STOPPING_PATIENCE,
         "best_epoch": best_epoch,
         "best_validation_loss": round(best_validation_loss, 6),
         "best_validation_accuracy": round(best_validation_accuracy, 6),
@@ -444,6 +419,8 @@ def append_train_run_log(
     final_train_accuracy: float,
     final_validation_loss: float,
     final_validation_accuracy: float,
+    final_learning_rate: float,
+    stopped_epoch: int,
     class_weights: Tensor,
 ) -> None:
     """
@@ -459,9 +436,15 @@ def append_train_run_log(
         "num_classes",
         "classes",
         "epochs",
+        "stopped_epoch",
         "batch_size",
         "learning_rate",
+        "final_learning_rate",
         "weight_decay",
+        "lr_scheduler_factor",
+        "lr_scheduler_patience",
+        "min_learning_rate",
+        "early_stopping_patience",
         "best_epoch",
         "best_validation_loss",
         "best_validation_accuracy",
@@ -475,6 +458,7 @@ def append_train_run_log(
         "training_report_file",
         "training_loss_plot_file",
         "training_accuracy_plot_file",
+        "training_lr_plot_file",
     ]
 
     class_weights_dict = {
@@ -491,9 +475,15 @@ def append_train_run_log(
         "num_classes": len(train_dataset.classes),
         "classes": "|".join(train_dataset.classes),
         "epochs": TRAIN_EPOCHS,
+        "stopped_epoch": stopped_epoch,
         "batch_size": TRAIN_BATCH_SIZE,
         "learning_rate": LEARNING_RATE,
+        "final_learning_rate": format_float(final_learning_rate),
         "weight_decay": WEIGHT_DECAY,
+        "lr_scheduler_factor": LR_SCHEDULER_FACTOR,
+        "lr_scheduler_patience": LR_SCHEDULER_PATIENCE,
+        "min_learning_rate": MIN_LEARNING_RATE,
+        "early_stopping_patience": EARLY_STOPPING_PATIENCE,
         "best_epoch": best_epoch,
         "best_validation_loss": format_float(best_validation_loss),
         "best_validation_accuracy": format_float(best_validation_accuracy),
@@ -507,6 +497,7 @@ def append_train_run_log(
         "training_report_file": str(TRAINING_REPORT_FILE),
         "training_loss_plot_file": str(TRAINING_LOSS_PLOT_FILE),
         "training_accuracy_plot_file": str(TRAINING_ACCURACY_PLOT_FILE),
+        "training_lr_plot_file": str(TRAINING_LR_PLOT_FILE),
     }
 
     append_csv_row(
@@ -517,6 +508,7 @@ def append_train_run_log(
 
     print(f"Log acumulativo do treino salvo em: {TRAIN_RUNS_LOG_FILE}")
 
+
 def main() -> None:
     """
     Executa o treino do modelo.
@@ -525,6 +517,7 @@ def main() -> None:
     ensure_directories()
 
     train_run_id = create_run_id("train")
+
     print(f"Train Run ID: {train_run_id}")
 
     torch.manual_seed(RANDOM_SEED)
@@ -536,12 +529,11 @@ def main() -> None:
     print(f"Total de imagens de treino: {len(train_dataset)}")
     print(f"Total de imagens de validação: {len(validation_dataset)}")
     print(f"Classes: {train_dataset.classes}")
+    print(f"Versão do modelo: {MODEL_VERSION}")
 
     device = get_device()
 
     print(f"Dispositivo usado: {device}")
-
-    print(f"Versão do modelo: {MODEL_VERSION}")
 
     model = build_model(
         num_classes=num_classes,
@@ -563,6 +555,14 @@ def main() -> None:
         weight_decay=WEIGHT_DECAY,
     )
 
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer,
+        mode="min",
+        factor=LR_SCHEDULER_FACTOR,
+        patience=LR_SCHEDULER_PATIENCE,
+        min_lr=MIN_LEARNING_RATE,
+    )
+
     training_history: list[dict[str, float | int]] = []
 
     best_validation_loss = float("inf")
@@ -573,6 +573,10 @@ def main() -> None:
     final_train_accuracy = 0.0
     final_validation_loss = 0.0
     final_validation_accuracy = 0.0
+    final_learning_rate = LEARNING_RATE
+    stopped_epoch = 0
+
+    epochs_without_improvement = 0
 
     for epoch in range(TRAIN_EPOCHS):
         train_loss, train_accuracy = train_one_epoch(
@@ -596,6 +600,7 @@ def main() -> None:
             best_validation_loss = validation_loss
             best_validation_accuracy = validation_accuracy
             best_epoch = epoch + 1
+            epochs_without_improvement = 0
 
             best_checkpoint = build_checkpoint(
                 model=model,
@@ -612,14 +617,24 @@ def main() -> None:
                 model_path=BEST_MODEL_FILE,
             )
 
+        else:
+            epochs_without_improvement += 1
+
+        scheduler.step(validation_loss)
+
+        current_learning_rate = float(optimizer.param_groups[0]["lr"])
+
         final_train_loss = train_loss
         final_train_accuracy = train_accuracy
         final_validation_loss = validation_loss
         final_validation_accuracy = validation_accuracy
+        final_learning_rate = current_learning_rate
+        stopped_epoch = epoch + 1
 
         training_history.append(
             {
                 "epoch": epoch + 1,
+                "learning_rate": current_learning_rate,
                 "train_loss": train_loss,
                 "train_accuracy": train_accuracy,
                 "validation_loss": validation_loss,
@@ -630,6 +645,7 @@ def main() -> None:
 
         message = (
             f"Época {epoch + 1}/{TRAIN_EPOCHS} | "
+            f"LR: {current_learning_rate:.8f} | "
             f"Treino Loss: {train_loss:.4f} | "
             f"Treino Acc: {train_accuracy:.4f} | "
             f"Val Loss: {validation_loss:.4f} | "
@@ -641,11 +657,18 @@ def main() -> None:
 
         print(message)
 
+        if epochs_without_improvement >= EARLY_STOPPING_PATIENCE:
+            print(
+                "Early stopping acionado. "
+                f"Sem melhora no validation loss por {EARLY_STOPPING_PATIENCE} épocas."
+            )
+            break
+
     last_checkpoint = build_checkpoint(
         model=model,
         dataset=train_dataset,
         num_classes=num_classes,
-        epoch=TRAIN_EPOCHS,
+        epoch=stopped_epoch,
         validation_loss=final_validation_loss,
         validation_accuracy=final_validation_accuracy,
         train_run_id=train_run_id,
@@ -669,6 +692,8 @@ def main() -> None:
         final_train_accuracy=final_train_accuracy,
         final_validation_loss=final_validation_loss,
         final_validation_accuracy=final_validation_accuracy,
+        final_learning_rate=final_learning_rate,
+        stopped_epoch=stopped_epoch,
     )
 
     append_train_run_log(
@@ -682,14 +707,19 @@ def main() -> None:
         final_train_accuracy=final_train_accuracy,
         final_validation_loss=final_validation_loss,
         final_validation_accuracy=final_validation_accuracy,
+        final_learning_rate=final_learning_rate,
+        stopped_epoch=stopped_epoch,
         class_weights=class_weights,
     )
 
     print("-" * 80)
     print("Resumo do treino")
+    print(f"Versão do modelo: {MODEL_VERSION}")
     print(f"Melhor época: {best_epoch}")
     print(f"Melhor Val Loss: {best_validation_loss:.4f}")
     print(f"Melhor Val Acc: {best_validation_accuracy:.4f}")
+    print(f"Época final executada: {stopped_epoch}")
+    print(f"Learning rate final: {final_learning_rate:.8f}")
     print(f"Modelo BEST: {BEST_MODEL_FILE}")
     print(f"Modelo LAST: {LAST_MODEL_FILE}")
     print("Treino finalizado.")

@@ -451,12 +451,21 @@ EXTERNAL_SKYVIEW_TARGETS = [
 # Configurações de treino
 RANDOM_SEED = 42
 
-MODEL_VERSION = "AstroMindCNNV1"
+MODEL_VERSION = "AstroMindCNNV2"
 
 TRAIN_BATCH_SIZE = 4
 TRAIN_EPOCHS = 30
 LEARNING_RATE = 0.0005
 WEIGHT_DECAY = 0.0001
+
+# Controle de aprendizado e parada antecipada
+LR_SCHEDULER_FACTOR = 0.5
+LR_SCHEDULER_PATIENCE = 3
+MIN_LEARNING_RATE = 0.000001
+
+EARLY_STOPPING_PATIENCE = 8
+
+TRAINING_LR_PLOT_FILE = OUTPUT_IMAGES_DIR / "training_learning_rate.png"
 
 BEST_MODEL_FILE = MODELS_DIR / "astronomy_classifier_best.pth"
 LAST_MODEL_FILE = MODELS_DIR / "astronomy_classifier_last.pth"
