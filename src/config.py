@@ -52,6 +52,7 @@ EXTERNAL_LABELS_FILE = EXTERNAL_DATA_DIR / "external_labels.csv"
 
 EXTERNAL_EVALUATION_REPORT_FILE = OUTPUT_REPORTS_DIR / "external_evaluation_report.csv"
 EXTERNAL_CONFUSION_MATRIX_FILE = OUTPUT_REPORTS_DIR / "external_confusion_matrix.csv"
+EXTERNAL_ERRORS_REPORT_FILE = OUTPUT_REPORTS_DIR / "external_errors_report.csv"
 
 EXTERNAL_EVALUATE_RUNS_LOG_FILE = EXPERIMENT_LOGS_DIR / "external_evaluate_runs.csv"
 
