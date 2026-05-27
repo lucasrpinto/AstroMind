@@ -41,23 +41,28 @@ def build_output_path(
     label: str,
     target: str,
     survey: str,
+    width_degrees: float,
     index: int,
 ) -> Path:
     """
     Monta o caminho final do arquivo FITS baixado via SkyView.
 
-    Estrutura:
-    data/raw/classe/alvo/skyview_classe_alvo_survey_indice.fits
+    Inclui o tamanho do recorte no nome para evitar sobrescrever arquivos
+    quando usamos múltiplos width_degrees para o mesmo alvo.
     """
 
     safe_label = sanitize_name(label)
     safe_target = sanitize_name(target)
     safe_survey = sanitize_name(survey)
+    safe_width = str(width_degrees).replace(".", "p")
 
     target_dir = RAW_DATA_DIR / safe_label / safe_target
     target_dir.mkdir(parents=True, exist_ok=True)
 
-    filename = f"skyview_{safe_label}_{safe_target}_{safe_survey}_{index}.fits"
+    filename = (
+        f"skyview_{safe_label}_{safe_target}_"
+        f"{safe_survey}_{safe_width}deg_{index}.fits"
+    )
 
     return target_dir / filename
 
@@ -115,6 +120,7 @@ def download_one_skyview_image(
                 label=label,
                 target=target,
                 survey=survey,
+                width_degrees=width_degrees,
                 index=index,
             )
 
@@ -160,26 +166,40 @@ def download_one_skyview_image(
 def process_skyview_target(target_config: dict[str, Any]) -> list[dict[str, str]]:
     """
     Processa um item do SKYVIEW_TARGETS.
+
+    Suporta dois formatos:
+    - width_degrees: float
+    - width_degrees_list: list[float]
     """
 
     label = str(target_config["label"])
     target = str(target_config["target"])
     surveys = target_config["surveys"]
-    width_degrees = float(target_config["width_degrees"])
     pixels = int(target_config["pixels"])
+
+    if "width_degrees_list" in target_config:
+        width_degrees_values = [
+            float(value)
+            for value in target_config["width_degrees_list"]
+        ]
+    else:
+        width_degrees_values = [
+            float(target_config["width_degrees"])
+        ]
 
     all_rows: list[dict[str, str]] = []
 
-    for survey in surveys:
-        rows = download_one_skyview_image(
-            label=label,
-            target=target,
-            survey=str(survey),
-            width_degrees=width_degrees,
-            pixels=pixels,
-        )
+    for width_degrees in width_degrees_values:
+        for survey in surveys:
+            rows = download_one_skyview_image(
+                label=label,
+                target=target,
+                survey=str(survey),
+                width_degrees=width_degrees,
+                pixels=pixels,
+            )
 
-        all_rows.extend(rows)
+            all_rows.extend(rows)
 
     return all_rows
 

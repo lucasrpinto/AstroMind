@@ -353,6 +353,107 @@ SKYVIEW_TARGETS = [
         "width_degrees": 0.18,
         "pixels": 400,
     },
+        # Nebulosas adicionais para reforço da classe nebulosa - V2.2
+    {
+        "label": "nebulosa",
+        "target": "M1",
+        "surveys": ["DSS2 Red", "DSS2 Blue"],
+        "width_degrees_list": [0.12, 0.20],
+        "pixels": 400,
+    },
+    {
+        "label": "nebulosa",
+        "target": "M20",
+        "surveys": ["DSS2 Red", "DSS2 Blue"],
+        "width_degrees_list": [0.18, 0.30],
+        "pixels": 400,
+    },
+    {
+        "label": "nebulosa",
+        "target": "NGC 2392",
+        "surveys": ["DSS2 Red", "DSS2 Blue"],
+        "width_degrees_list": [0.08, 0.12],
+        "pixels": 400,
+    },
+    {
+        "label": "nebulosa",
+        "target": "NGC 6543",
+        "surveys": ["DSS2 Red", "DSS2 Blue"],
+        "width_degrees_list": [0.08, 0.12],
+        "pixels": 400,
+    },
+    {
+        "label": "nebulosa",
+        "target": "NGC 6826",
+        "surveys": ["DSS2 Red", "DSS2 Blue"],
+        "width_degrees_list": [0.08, 0.12],
+        "pixels": 400,
+    },
+    {
+        "label": "nebulosa",
+        "target": "NGC 7662",
+        "surveys": ["DSS2 Red", "DSS2 Blue"],
+        "width_degrees_list": [0.08, 0.12],
+        "pixels": 400,
+    },
+    {
+        "label": "nebulosa",
+        "target": "IC 434",
+        "surveys": ["DSS2 Red", "DSS2 Blue"],
+        "width_degrees_list": [0.20, 0.35],
+        "pixels": 400,
+    },
+    {
+        "label": "nebulosa",
+        "target": "NGC 1499",
+        "surveys": ["DSS2 Red", "DSS2 Blue"],
+        "width_degrees_list": [0.30, 0.50],
+        "pixels": 400,
+    },
+    {
+        "label": "nebulosa",
+        "target": "IC 1396",
+        "surveys": ["DSS2 Red", "DSS2 Blue"],
+        "width_degrees_list": [0.30, 0.50],
+        "pixels": 400,
+    },
+    {
+        "label": "nebulosa",
+        "target": "NGC 2237",
+        "surveys": ["DSS2 Red", "DSS2 Blue"],
+        "width_degrees_list": [0.25, 0.40],
+        "pixels": 400,
+    },
+
+    # Galáxias edge-on adicionais para reduzir confusão com nebulosa
+    {
+        "label": "galaxia",
+        "target": "NGC 5907",
+        "surveys": ["DSS2 Red", "DSS2 Blue"],
+        "width_degrees_list": [0.16, 0.22],
+        "pixels": 400,
+    },
+    {
+        "label": "galaxia",
+        "target": "NGC 4244",
+        "surveys": ["DSS2 Red", "DSS2 Blue"],
+        "width_degrees_list": [0.18, 0.25],
+        "pixels": 400,
+    },
+    {
+        "label": "galaxia",
+        "target": "NGC 3628",
+        "surveys": ["DSS2 Red", "DSS2 Blue"],
+        "width_degrees_list": [0.18, 0.25],
+        "pixels": 400,
+    },
+    {
+        "label": "galaxia",
+        "target": "NGC 7814",
+        "surveys": ["DSS2 Red", "DSS2 Blue"],
+        "width_degrees_list": [0.14, 0.20],
+        "pixels": 400,
+    },
 ]
 
 # Alvos externos para validação fora do dataset principal
@@ -454,7 +555,7 @@ EXTERNAL_SKYVIEW_TARGETS = [
 # Configurações de treino
 RANDOM_SEED = 42
 
-MODEL_VERSION = "AstroMindCNNV2.1"
+MODEL_VERSION = "AstroMindCNNV2.2"
 
 TRAIN_BATCH_SIZE = 4
 TRAIN_EPOCHS = 50
