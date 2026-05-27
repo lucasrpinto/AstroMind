@@ -168,6 +168,7 @@ MODEL_REGISTRY = {
     "AstroMindCNNV1": AstroMindCNNV1,
     "AstroMindCNNV2": AstroMindCNNV2,
     "AstroMindCNNV2.1": AstroMindCNNV21,
+    "AstroMindCNNV2.2": AstroMindCNNV21
 }
 
 
