@@ -555,18 +555,38 @@ EXTERNAL_SKYVIEW_TARGETS = [
 # Configurações de treino
 RANDOM_SEED = 42
 
-MODEL_VERSION = "AstroMindCNNV2.2"
+MODEL_VERSION = "AstroMindCNNV2.4"
 
 TRAIN_BATCH_SIZE = 4
 TRAIN_EPOCHS = 50
-LEARNING_RATE = 0.0005
+LEARNING_RATE = 0.0003
 WEIGHT_DECAY = 0.00005
+
+# Na V2.4 vamos voltar para a estratégia da V2.2
+USE_WEIGHTED_SAMPLER = False
+USE_CLASS_WEIGHTS = True
 
 LR_SCHEDULER_FACTOR = 0.5
 LR_SCHEDULER_PATIENCE = 5
 MIN_LEARNING_RATE = 0.000001
 
 EARLY_STOPPING_PATIENCE = 12
+
+
+# Checkpoints versionados
+CHECKPOINTS_DIR = MODELS_DIR / "checkpoints"
+
+MODEL_VERSION_FILE_STEM = (
+    MODEL_VERSION
+    .replace(".", "_")
+    .replace(" ", "_")
+)
+
+BEST_MODEL_FILE = CHECKPOINTS_DIR / f"{MODEL_VERSION_FILE_STEM}_best.pth"
+LAST_MODEL_FILE = CHECKPOINTS_DIR / f"{MODEL_VERSION_FILE_STEM}_last.pth"
+
+# O restante do projeto sempre usa o melhor modelo da versão ativa
+MODEL_FILE = BEST_MODEL_FILE
 
 TRAINING_LR_PLOT_FILE = OUTPUT_IMAGES_DIR / "training_learning_rate.png"
 
@@ -618,13 +638,13 @@ def ensure_directories() -> None:
         REJECTED_IMAGES_DIR,
         LABELS_DIR,
         MODELS_DIR,
+        CHECKPOINTS_DIR,
         OUTPUT_IMAGES_DIR,
         OUTPUT_REPORTS_DIR,
         EXPERIMENT_LOGS_DIR,
         EXTERNAL_DATA_DIR,
         EXTERNAL_IMAGES_DIR,
         DOCS_DIR,
-        EXTERNAL_ERROR_IMAGES_DIR,
     ]
 
     for directory in directories:

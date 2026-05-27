@@ -6,7 +6,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import torch
 from torch import Tensor, nn
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, WeightedRandomSampler
 
 from src.config import (
     BEST_MODEL_FILE,
@@ -30,6 +30,8 @@ from src.config import (
     TRAIN_LABELS_FILE,
     VAL_LABELS_FILE,
     TRAIN_RUNS_LOG_FILE,
+    USE_WEIGHTED_SAMPLER,
+    USE_CLASS_WEIGHTS,
     ensure_directories,
 )
 from src.dataset import (
@@ -57,6 +59,36 @@ def get_device() -> torch.device:
 
     return torch.device("cpu")
 
+def create_weighted_sampler(
+    dataset: AstronomyImageDataset,
+) -> WeightedRandomSampler:
+    """
+    Cria um sampler balanceado para o conjunto de treino.
+
+    A ideia é dar maior chance de amostragem para classes com menos imagens,
+    sem precisar duplicar arquivos no dataset.
+    """
+
+    labels = dataset.data["label"].tolist()
+    counts = Counter(labels)
+
+    sample_weights = []
+
+    for label in labels:
+        class_count = counts[label]
+        sample_weight = 1.0 / class_count
+        sample_weights.append(sample_weight)
+
+    sampler = WeightedRandomSampler(
+        weights=torch.DoubleTensor(sample_weights),
+        num_samples=len(sample_weights),
+        replacement=True,
+    )
+
+    print("WeightedRandomSampler ativado.")
+    print(f"Distribuição original do treino: {dict(counts)}")
+
+    return sampler
 
 def create_data_loaders() -> tuple[
     AstronomyImageDataset,
@@ -66,6 +98,9 @@ def create_data_loaders() -> tuple[
 ]:
     """
     Cria datasets e dataloaders usando splits fixos.
+
+    Na V2.3, o treino pode usar WeightedRandomSampler para gerar
+    batches mais equilibrados entre as classes.
     """
 
     train_dataset = AstronomyImageDataset(
@@ -78,11 +113,21 @@ def create_data_loaders() -> tuple[
         transform=get_eval_transforms(),
     )
 
-    train_loader = DataLoader(
-        train_dataset,
-        batch_size=TRAIN_BATCH_SIZE,
-        shuffle=True,
-    )
+    if USE_WEIGHTED_SAMPLER:
+        train_sampler = create_weighted_sampler(train_dataset)
+
+        train_loader = DataLoader(
+            train_dataset,
+            batch_size=TRAIN_BATCH_SIZE,
+            sampler=train_sampler,
+        )
+
+    else:
+        train_loader = DataLoader(
+            train_dataset,
+            batch_size=TRAIN_BATCH_SIZE,
+            shuffle=True,
+        )
 
     validation_loader = DataLoader(
         validation_dataset,
@@ -243,6 +288,8 @@ def save_model_checkpoint(
     Salva um checkpoint do modelo.
     """
 
+    model_path.parent.mkdir(parents=True, exist_ok=True)
+
     torch.save(checkpoint, model_path)
     print(f"Modelo salvo em: {model_path}")
 
@@ -354,6 +401,8 @@ def append_experiment_summary(
         "learning_rate",
         "final_learning_rate",
         "weight_decay",
+        "use_weighted_sampler",
+        "use_class_weights",
         "lr_scheduler_factor",
         "lr_scheduler_patience",
         "min_learning_rate",
@@ -395,6 +444,8 @@ def append_experiment_summary(
         "final_validation_accuracy": round(final_validation_accuracy, 6),
         "best_model_file": str(BEST_MODEL_FILE),
         "last_model_file": str(LAST_MODEL_FILE),
+        "use_weighted_sampler": USE_WEIGHTED_SAMPLER,
+        "use_class_weights": USE_CLASS_WEIGHTS,
     }
 
     with EXPERIMENT_SUMMARY_FILE.open("a", newline="", encoding="utf-8") as file:
@@ -441,6 +492,8 @@ def append_train_run_log(
         "learning_rate",
         "final_learning_rate",
         "weight_decay",
+        "use_weighted_sampler",
+        "use_class_weights",
         "lr_scheduler_factor",
         "lr_scheduler_patience",
         "min_learning_rate",
@@ -498,6 +551,8 @@ def append_train_run_log(
         "training_loss_plot_file": str(TRAINING_LOSS_PLOT_FILE),
         "training_accuracy_plot_file": str(TRAINING_ACCURACY_PLOT_FILE),
         "training_lr_plot_file": str(TRAINING_LR_PLOT_FILE),
+        "use_weighted_sampler": USE_WEIGHTED_SAMPLER,
+        "use_class_weights": USE_CLASS_WEIGHTS,
     }
 
     append_csv_row(
@@ -542,10 +597,25 @@ def main() -> None:
 
     model = model.to(device)
 
-    class_weights = calculate_class_weights(
-        dataset=train_dataset,
-        device=device,
-    )
+    if USE_CLASS_WEIGHTS:
+        class_weights = calculate_class_weights(
+            dataset=train_dataset,
+            device=device,
+        )
+
+        criterion = nn.CrossEntropyLoss(weight=class_weights)
+
+    else:
+        class_weights = torch.ones(
+            num_classes,
+            dtype=torch.float32,
+            device=device,
+        )
+
+        criterion = nn.CrossEntropyLoss()
+
+        print("Pesos por classe na loss: desativado.")
+        print("Usando CrossEntropyLoss sem pesos.")
 
     criterion = nn.CrossEntropyLoss(weight=class_weights)
 
@@ -715,6 +785,8 @@ def main() -> None:
     print("-" * 80)
     print("Resumo do treino")
     print(f"Versão do modelo: {MODEL_VERSION}")
+    print(f"Weighted sampler: {USE_WEIGHTED_SAMPLER}")
+    print(f"Class weights na loss: {USE_CLASS_WEIGHTS}")
     print(f"Melhor época: {best_epoch}")
     print(f"Melhor Val Loss: {best_validation_loss:.4f}")
     print(f"Melhor Val Acc: {best_validation_accuracy:.4f}")

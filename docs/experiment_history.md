@@ -11,7 +11,7 @@ Arquivos de origem:
 
 ## 1. Histórico de treinos
 
-Total de treinos registrados: **5**
+Total de treinos registrados: **6**
 
 | Run ID | Data | Modelo | Treino | Validação | Épocas | Melhor época | Best Val Loss | Best Val Acc | Final Train Acc | Final Val Acc |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -22,6 +22,7 @@ Total de treinos registrados: **5**
 | train_20260526_102743_194ad6ed | 2026-05-26 10:33:14 | AstroMindCNNV2 | 57 | 12 | 30 | 20 | 0.654141 | 75.00% | 58.33% | 83.33% |
 | train_20260526_150026_e7870f64 | 2026-05-26 15:12:32 | AstroMindCNNV2.1 | 57 | 12 | 50 | 43 | 0.492136 | 75.00% | 81.67% | 75.00% |
 | train_20260527_085121_448e3459 | 2026-05-27 09:12:57 | AstroMindCNNV2.2 | 118 | 25 | 50 | 41 | 0.526084 | 78.57% | 65.00% | 78.57% |
+| train_20260527_155905_0612b48a | 2026-05-27 16:08:40 | AstroMindCNNV2.3 | 118 | 25 | 50 | 11 | 0.729064 | 64.29% | 71.67% | 67.86% |
 
 **Melhor treino registrado:**
 
@@ -34,7 +35,7 @@ Total de treinos registrados: **5**
 
 ## 2. Histórico de avaliações no conjunto de teste
 
-Total de avaliações registradas: **5**
+Total de avaliações registradas: **6**
 
 | Evaluate Run ID | Train Run ID | Data | Dataset | Acurácia | Acertos | Erros |
 |---|---|---:|---:|---:|---:|---:|
@@ -43,6 +44,7 @@ Total de avaliações registradas: **5**
 | evaluate_20260526_115218_049a5553 | train_20260526_102743_194ad6ed | 2026-05-26 11:52:19 | 13 | 84.62% | 11 | 2 |
 | evaluate_20260526_153219_467bae83 | train_20260526_150026_e7870f64 | 2026-05-26 15:32:20 | 13 | 100.00% | 13 | 0 |
 | evaluate_20260527_113723_2d14081f | train_20260527_085121_448e3459 | 2026-05-27 11:37:25 | 26 | 76.92% | 20 | 6 |
+| evaluate_20260527_161729_af0382e7 | train_20260527_155905_0612b48a | 2026-05-27 16:17:31 | 26 | 65.38% | 17 | 9 |
 
 **Melhor avaliação registrada:**
 
@@ -54,7 +56,7 @@ Total de avaliações registradas: **5**
 
 ## 3. Histórico de avaliações externas
 
-Total de avaliações externas registradas: **5**
+Total de avaliações externas registradas: **6**
 
 | External Run ID | Train Run ID | Data | Imagens | Imagens rotuladas | Acurácia externa | Acertos | Erros |
 |---|---|---:|---:|---:|---:|---:|---:|
@@ -63,10 +65,11 @@ Total de avaliações externas registradas: **5**
 | external_evaluate_20260526_115646_755f6152 | train_20260526_102743_194ad6ed | 2026-05-26 11:56:48 | 21 | 21 | 85.71% | 18 | 3 |
 | external_evaluate_20260526_153748_205429ec | train_20260526_150026_e7870f64 | 2026-05-26 15:37:51 | 21 | 21 | 80.95% | 17 | 4 |
 | external_evaluate_20260527_113926_b34f29e9 | train_20260527_085121_448e3459 | 2026-05-27 11:39:28 | 21 | 21 | 76.19% | 16 | 5 |
+| external_evaluate_20260527_161803_002871a4 | train_20260527_155905_0612b48a | 2026-05-27 16:18:04 | 21 | 21 | 76.19% | 16 | 5 |
 
 ## 4. Histórico de predições individuais
 
-Total de predições registradas: **4**
+Total de predições registradas: **6**
 
 Últimas 10 predições:
 
@@ -76,6 +79,8 @@ Total de predições registradas: **4**
 | predict_20260526_100510_956a2cc3 | 2026-05-26 10:05:10 | aglomerado | aglomerado | 92.87% | True |
 | predict_20260526_115607_874d9dc6 | 2026-05-26 11:56:08 | aglomerado | galaxia | 56.62% | False |
 | predict_20260526_153425_ca65e711 | 2026-05-26 15:34:25 | aglomerado | aglomerado | 94.04% | True |
+| predict_20260527_115310_63a04a7e | 2026-05-27 11:53:11 | aglomerado | aglomerado | 92.72% | True |
+| predict_20260527_161819_a6a1e463 | 2026-05-27 16:18:19 | aglomerado | aglomerado | 61.62% | True |
 
 ## 5. Observações
 
