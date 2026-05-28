@@ -171,6 +171,7 @@ MODEL_REGISTRY = {
     "AstroMindCNNV2.2": AstroMindCNNV21,
     "AstroMindCNNV2.3": AstroMindCNNV21,
     "AstroMindCNNV2.4": AstroMindCNNV21,
+    "AstroMindCNNV2.5": AstroMindCNNV21,
 }
 
 

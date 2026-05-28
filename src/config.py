@@ -23,6 +23,8 @@ TRAIN_LABELS_FILE = LABELS_DIR / "train_labels.csv"
 VAL_LABELS_FILE = LABELS_DIR / "val_labels.csv"
 TEST_LABELS_FILE = LABELS_DIR / "test_labels.csv"
 
+MODEL_VERSION = "AstroMindCNNV2.5"
+
 MODELS_DIR = BASE_DIR / "models"
 
 # Logs versionáveis dos experimentos
@@ -454,6 +456,42 @@ SKYVIEW_TARGETS = [
         "width_degrees_list": [0.14, 0.20],
         "pixels": 400,
     },
+        # Nebulosas planetárias compactas - reforço V2.5
+    {
+        "label": "nebulosa",
+        "target": "NGC 7009",
+        "surveys": ["DSS2 Red", "DSS2 Blue"],
+        "width_degrees_list": [0.06, 0.10, 0.14],
+        "pixels": 400,
+    },
+    {
+        "label": "nebulosa",
+        "target": "NGC 7027",
+        "surveys": ["DSS2 Red", "DSS2 Blue"],
+        "width_degrees_list": [0.06, 0.10, 0.14],
+        "pixels": 400,
+    },
+    {
+        "label": "nebulosa",
+        "target": "NGC 3242",
+        "surveys": ["DSS2 Red", "DSS2 Blue"],
+        "width_degrees_list": [0.06, 0.10, 0.14],
+        "pixels": 400,
+    },
+    {
+        "label": "nebulosa",
+        "target": "IC 418",
+        "surveys": ["DSS2 Red", "DSS2 Blue"],
+        "width_degrees_list": [0.06, 0.10, 0.14],
+        "pixels": 400,
+    },
+    {
+        "label": "nebulosa",
+        "target": "NGC 6210",
+        "surveys": ["DSS2 Red", "DSS2 Blue"],
+        "width_degrees_list": [0.06, 0.10, 0.14],
+        "pixels": 400,
+    },
 ]
 
 # Alvos externos para validação fora do dataset principal
@@ -555,8 +593,6 @@ EXTERNAL_SKYVIEW_TARGETS = [
 # Configurações de treino
 RANDOM_SEED = 42
 
-MODEL_VERSION = "AstroMindCNNV2.4"
-
 TRAIN_BATCH_SIZE = 4
 TRAIN_EPOCHS = 50
 LEARNING_RATE = 0.0003
@@ -581,12 +617,6 @@ MODEL_VERSION_FILE_STEM = (
     .replace(".", "_")
     .replace(" ", "_")
 )
-
-BEST_MODEL_FILE = CHECKPOINTS_DIR / f"{MODEL_VERSION_FILE_STEM}_best.pth"
-LAST_MODEL_FILE = CHECKPOINTS_DIR / f"{MODEL_VERSION_FILE_STEM}_last.pth"
-
-# O restante do projeto sempre usa o melhor modelo da versão ativa
-MODEL_FILE = BEST_MODEL_FILE
 
 TRAINING_LR_PLOT_FILE = OUTPUT_IMAGES_DIR / "training_learning_rate.png"
 
