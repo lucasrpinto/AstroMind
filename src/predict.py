@@ -12,6 +12,8 @@ from src.config import (
     PROCESSED_IMAGES_DIR,
     PREDICT_RUNS_LOG_FILE,
     LABELS_FILE,
+    CHAMPION_MODEL_FILE,
+    CHAMPION_METADATA_FILE,
 )
 
 from src.experiment_logger import (
@@ -165,6 +167,12 @@ def parse_args() -> argparse.Namespace:
         help="Caminho da imagem para predição. Se não informado, usa a primeira imagem processada.",
     )
 
+    parser.add_argument(
+        "--champion",
+        action="store_true",
+        help="Usa o modelo campeão oficial em vez do modelo ativo no config.py.",
+    )
+
     return parser.parse_args()
 
 def infer_true_label_from_labels_file(image_path: Path) -> str:
@@ -192,6 +200,7 @@ def infer_true_label_from_labels_file(image_path: Path) -> str:
 def append_predict_run_log(
     predict_run_id: str,
     checkpoint: dict[str, Any],
+    model_file: Path,
     image_path: Path,
     predicted_class: str,
     confidence: float,
@@ -239,6 +248,7 @@ def append_predict_run_log(
         "confidence": format_float(confidence),
         "is_correct": is_correct,
         "probabilities": compact_dict(probabilities_formatted),
+        "model_file": str(model_file),
     }
 
     append_csv_row(
@@ -256,6 +266,22 @@ def main() -> None:
 
     args = parse_args()
 
+    model_file = CHAMPION_MODEL_FILE if args.champion else MODEL_FILE
+
+    if args.champion:
+        if not CHAMPION_MODEL_FILE.exists():
+            raise FileNotFoundError(
+                f"Modelo campeão não encontrado: {CHAMPION_MODEL_FILE}. "
+                "Execute primeiro: python -m src.promote_champion_model"
+            )
+
+        print("Usando modelo campeão oficial.")
+
+        if CHAMPION_METADATA_FILE.exists():
+            print(f"Metadados do campeão: {CHAMPION_METADATA_FILE}")
+    else:
+        print("Usando modelo ativo do config.py.")
+
     predict_run_id = create_run_id("predict")
     print(f"Predict Run ID: {predict_run_id}")
 
@@ -266,7 +292,7 @@ def main() -> None:
     print(f"Imagem analisada: {image_path}")
     print(f"Dispositivo usado: {device}")
 
-    checkpoint = load_checkpoint(MODEL_FILE, device)
+    checkpoint = load_checkpoint(model_file, device)
     model = load_model(checkpoint, device)
 
     print(f"Versão do modelo: {checkpoint.get('model_version', 'não informado')}")
@@ -295,6 +321,7 @@ def main() -> None:
     append_predict_run_log(
         predict_run_id=predict_run_id,
         checkpoint=checkpoint,
+        model_file=model_file,
         image_path=image_path,
         predicted_class=predicted_class,
         confidence=confidence,
