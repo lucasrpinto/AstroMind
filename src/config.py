@@ -23,7 +23,7 @@ TRAIN_LABELS_FILE = LABELS_DIR / "train_labels.csv"
 VAL_LABELS_FILE = LABELS_DIR / "val_labels.csv"
 TEST_LABELS_FILE = LABELS_DIR / "test_labels.csv"
 
-MODEL_VERSION = "AstroMindCNNV2.5"
+MODEL_VERSION = "AstroMindCNNV2.4"
 
 MODELS_DIR = BASE_DIR / "models"
 
@@ -620,8 +620,8 @@ MODEL_VERSION_FILE_STEM = (
 
 TRAINING_LR_PLOT_FILE = OUTPUT_IMAGES_DIR / "training_learning_rate.png"
 
-BEST_MODEL_FILE = MODELS_DIR / "astronomy_classifier_best.pth"
-LAST_MODEL_FILE = MODELS_DIR / "astronomy_classifier_last.pth"
+BEST_MODEL_FILE = CHECKPOINTS_DIR / f"{MODEL_VERSION_FILE_STEM}_best.pth"
+LAST_MODEL_FILE = CHECKPOINTS_DIR / f"{MODEL_VERSION_FILE_STEM}_last.pth"
 
 # Mantém compatibilidade com predict.py e evaluate.py
 MODEL_FILE = BEST_MODEL_FILE
@@ -634,6 +634,10 @@ TRAINING_ACCURACY_PLOT_FILE = OUTPUT_IMAGES_DIR / "training_accuracy.png"
 
 EVALUATION_REPORT_FILE = OUTPUT_REPORTS_DIR / "evaluation_report.csv"
 CONFUSION_MATRIX_FILE = OUTPUT_REPORTS_DIR / "confusion_matrix.csv"
+
+EXPERIMENT_COMPARISON_FILE = OUTPUT_REPORTS_DIR / "experiment_comparison.csv"
+EXPERIMENT_COMPARISON_MARKDOWN_FILE = DOCS_DIR / "experiment_comparison.md"
+
 SKYVIEW_DOWNLOAD_REPORT_FILE = OUTPUT_REPORTS_DIR / "skyview_download_report.csv"
 
 # Padrões de arquivos FITS que serão rejeitados automaticamente
