@@ -623,6 +623,14 @@ TRAINING_LR_PLOT_FILE = OUTPUT_IMAGES_DIR / "training_learning_rate.png"
 BEST_MODEL_FILE = CHECKPOINTS_DIR / f"{MODEL_VERSION_FILE_STEM}_best.pth"
 LAST_MODEL_FILE = CHECKPOINTS_DIR / f"{MODEL_VERSION_FILE_STEM}_last.pth"
 
+# Checkpoints por execução
+RUN_CHECKPOINTS_DIR = CHECKPOINTS_DIR / "runs"
+
+# Modelo campeão oficial
+CHAMPION_MODEL_DIR = MODELS_DIR / "champion"
+CHAMPION_MODEL_FILE = CHAMPION_MODEL_DIR / "astromind_champion.pth"
+CHAMPION_METADATA_FILE = CHAMPION_MODEL_DIR / "champion_metadata.json"
+
 # Mantém compatibilidade com predict.py e evaluate.py
 MODEL_FILE = BEST_MODEL_FILE
 
@@ -679,6 +687,8 @@ def ensure_directories() -> None:
         EXTERNAL_DATA_DIR,
         EXTERNAL_IMAGES_DIR,
         DOCS_DIR,
+        CHAMPION_MODEL_DIR,
+        RUN_CHECKPOINTS_DIR,
     ]
 
     for directory in directories:

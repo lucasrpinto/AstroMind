@@ -32,6 +32,8 @@ from src.config import (
     TRAIN_RUNS_LOG_FILE,
     USE_WEIGHTED_SAMPLER,
     USE_CLASS_WEIGHTS,
+    RUN_CHECKPOINTS_DIR,
+    MODEL_VERSION_FILE_STEM,
     ensure_directories,
 )
 from src.dataset import (
@@ -473,6 +475,8 @@ def append_train_run_log(
     final_learning_rate: float,
     stopped_epoch: int,
     class_weights: Tensor,
+    best_model_file: Path,
+    last_model_file: Path,
 ) -> None:
     """
     Registra uma linha acumulativa com o resultado da rodada de treino.
@@ -545,8 +549,8 @@ def append_train_run_log(
         "final_validation_loss": format_float(final_validation_loss),
         "final_validation_accuracy": format_float(final_validation_accuracy),
         "class_weights": compact_dict(class_weights_dict),
-        "best_model_file": str(BEST_MODEL_FILE),
-        "last_model_file": str(LAST_MODEL_FILE),
+        "best_model_file": str(best_model_file),
+        "last_model_file": str(last_model_file),
         "training_report_file": str(TRAINING_REPORT_FILE),
         "training_loss_plot_file": str(TRAINING_LOSS_PLOT_FILE),
         "training_accuracy_plot_file": str(TRAINING_ACCURACY_PLOT_FILE),
@@ -564,6 +568,21 @@ def append_train_run_log(
     print(f"Log acumulativo do treino salvo em: {TRAIN_RUNS_LOG_FILE}")
 
 
+def build_run_checkpoint_paths(train_run_id: str) -> tuple[Path, Path]:
+    """
+    Cria caminhos de checkpoint específicos para uma execução de treino.
+
+    Isso evita sobrescrever checkpoints de treinos anteriores da mesma versão.
+    """
+
+    run_checkpoint_dir = RUN_CHECKPOINTS_DIR / MODEL_VERSION_FILE_STEM
+    run_checkpoint_dir.mkdir(parents=True, exist_ok=True)
+
+    run_best_model_file = run_checkpoint_dir / f"{train_run_id}_best.pth"
+    run_last_model_file = run_checkpoint_dir / f"{train_run_id}_last.pth"
+
+    return run_best_model_file, run_last_model_file
+
 def main() -> None:
     """
     Executa o treino do modelo.
@@ -572,6 +591,8 @@ def main() -> None:
     ensure_directories()
 
     train_run_id = create_run_id("train")
+
+    run_best_model_file, run_last_model_file = build_run_checkpoint_paths(train_run_id)
 
     print(f"Train Run ID: {train_run_id}")
 
@@ -684,6 +705,12 @@ def main() -> None:
 
             save_model_checkpoint(
                 checkpoint=best_checkpoint,
+                model_path=run_best_model_file,
+            )
+
+            # Também atualiza o alias da versão ativa
+            save_model_checkpoint(
+                checkpoint=best_checkpoint,
                 model_path=BEST_MODEL_FILE,
             )
 
@@ -746,6 +773,12 @@ def main() -> None:
 
     save_model_checkpoint(
         checkpoint=last_checkpoint,
+        model_path=run_last_model_file,
+    )
+
+    # Também atualiza o alias da versão ativa
+    save_model_checkpoint(
+        checkpoint=last_checkpoint,
         model_path=LAST_MODEL_FILE,
     )
 
@@ -780,6 +813,8 @@ def main() -> None:
         final_learning_rate=final_learning_rate,
         stopped_epoch=stopped_epoch,
         class_weights=class_weights,
+        best_model_file=run_best_model_file,
+        last_model_file=run_last_model_file,
     )
 
     print("-" * 80)
