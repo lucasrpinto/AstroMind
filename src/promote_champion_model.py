@@ -211,6 +211,17 @@ def promote_champion() -> None:
 
     comparison_df = comparison_df.copy()
 
+    if "is_promotable" in comparison_df.columns:
+        comparison_df = comparison_df[
+            comparison_df["is_promotable"].astype(str).str.lower() == "true"
+        ].copy()
+
+        if comparison_df.empty:
+            raise RuntimeError(
+                "Nenhum experimento promovível encontrado. "
+                "Execute um treino novo para gerar checkpoints por train_run_id."
+            )
+
     comparison_df["external_accuracy_float"] = comparison_df["external_accuracy"].apply(to_float)
     comparison_df["test_accuracy_float"] = comparison_df["test_accuracy"].apply(to_float)
     comparison_df["best_validation_accuracy_float"] = comparison_df[

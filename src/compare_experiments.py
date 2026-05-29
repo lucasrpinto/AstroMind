@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
+import torch
 
 from src.config import (
     TRAIN_RUNS_LOG_FILE,
@@ -9,9 +10,10 @@ from src.config import (
     EXTERNAL_EVALUATE_RUNS_LOG_FILE,
     EXPERIMENT_COMPARISON_FILE,
     EXPERIMENT_COMPARISON_MARKDOWN_FILE,
+    CHECKPOINTS_DIR,
+    RUN_CHECKPOINTS_DIR,
     ensure_directories,
 )
-
 
 def read_csv_if_exists(path: Path) -> pd.DataFrame:
     """
@@ -99,6 +101,154 @@ def parse_class_accuracy(
 
     return ""
 
+def build_model_version_stem(model_version: str) -> str:
+    """
+    Converte o nome da versão do modelo para um formato seguro de arquivo.
+
+    Exemplo:
+    AstroMindCNNV2.4 -> AstroMindCNNV2_4
+    """
+
+    return (
+        model_version
+        .replace(".", "_")
+        .replace(" ", "_")
+    )
+
+
+def get_checkpoint_candidates(
+    model_version: str,
+    train_run_id: str,
+    best_model_file: str,
+) -> list[Path]:
+    """
+    Monta os possíveis caminhos de checkpoint para um experimento.
+
+    Ordem:
+    1. Caminho registrado no train_runs.csv.
+    2. Caminho por execução: models/checkpoints/runs/{model}/{train_run_id}_best.pth.
+    3. Caminho alias da versão: models/checkpoints/{model}_best.pth.
+    """
+
+    candidates: list[Path] = []
+
+    if best_model_file:
+        candidates.append(Path(best_model_file))
+
+    model_version_stem = build_model_version_stem(model_version)
+
+    run_checkpoint_path = (
+        RUN_CHECKPOINTS_DIR
+        / model_version_stem
+        / f"{train_run_id}_best.pth"
+    )
+
+    candidates.append(run_checkpoint_path)
+
+    version_checkpoint_path = CHECKPOINTS_DIR / f"{model_version_stem}_best.pth"
+
+    candidates.append(version_checkpoint_path)
+
+    unique_candidates: list[Path] = []
+
+    for candidate in candidates:
+        if candidate not in unique_candidates:
+            unique_candidates.append(candidate)
+
+    return unique_candidates
+
+
+def inspect_checkpoint_status(row: dict[str, Any]) -> dict[str, Any]:
+    """
+    Verifica se existe um checkpoint válido para o experimento.
+
+    Um checkpoint é considerado promovível quando:
+    - existe fisicamente;
+    - contém o mesmo model_version registrado no log;
+    - contém o mesmo train_run_id registrado no log.
+    """
+
+    expected_model_version = str(row.get("model_version", "")).strip()
+    expected_train_run_id = str(row.get("train_run_id", "")).strip()
+    best_model_file = str(row.get("best_model_file", "")).strip()
+
+    candidates = get_checkpoint_candidates(
+        model_version=expected_model_version,
+        train_run_id=expected_train_run_id,
+        best_model_file=best_model_file,
+    )
+
+    first_existing_checkpoint = ""
+    first_checkpoint_model_version = ""
+    first_checkpoint_train_run_id = ""
+    first_error = ""
+
+    for candidate in candidates:
+        if not candidate.exists():
+            continue
+
+        first_existing_checkpoint = str(candidate)
+
+        try:
+            checkpoint = torch.load(
+                candidate,
+                map_location="cpu",
+            )
+
+            checkpoint_model_version = str(
+                checkpoint.get("model_version", "")
+            ).strip()
+
+            checkpoint_train_run_id = str(
+                checkpoint.get("train_run_id", "")
+            ).strip()
+
+            first_checkpoint_model_version = checkpoint_model_version
+            first_checkpoint_train_run_id = checkpoint_train_run_id
+
+            matches_model = checkpoint_model_version == expected_model_version
+            matches_run = checkpoint_train_run_id == expected_train_run_id
+
+            if matches_model and matches_run:
+                return {
+                    "checkpoint_path": str(candidate),
+                    "checkpoint_exists": True,
+                    "checkpoint_model_version": checkpoint_model_version,
+                    "checkpoint_train_run_id": checkpoint_train_run_id,
+                    "checkpoint_matches_train_run": True,
+                    "is_promotable": True,
+                    "checkpoint_status": "valid",
+                }
+
+        except Exception as error:
+            first_error = str(error)
+
+    if first_existing_checkpoint:
+        return {
+            "checkpoint_path": first_existing_checkpoint,
+            "checkpoint_exists": True,
+            "checkpoint_model_version": first_checkpoint_model_version,
+            "checkpoint_train_run_id": first_checkpoint_train_run_id,
+            "checkpoint_matches_train_run": False,
+            "is_promotable": False,
+            "checkpoint_status": (
+                "checkpoint encontrado, mas metadata incompatível"
+            ),
+        }
+
+    return {
+        "checkpoint_path": "",
+        "checkpoint_exists": False,
+        "checkpoint_model_version": "",
+        "checkpoint_train_run_id": "",
+        "checkpoint_matches_train_run": False,
+        "is_promotable": False,
+        "checkpoint_status": (
+            f"checkpoint não encontrado"
+            if not first_error
+            else f"erro ao ler checkpoint: {first_error}"
+        ),
+    }
 
 def latest_by_train_run(
     df: pd.DataFrame,
@@ -258,6 +408,9 @@ def build_comparison_df(
             ),
         }
 
+        checkpoint_status = inspect_checkpoint_status(row)
+        row.update(checkpoint_status)
+
         rows.append(row)
 
     comparison_df = pd.DataFrame(rows)
@@ -318,9 +471,9 @@ def save_comparison_markdown(comparison_df: pd.DataFrame) -> None:
     lines.append("")
     lines.append(
         "| Posição | Modelo | Train Run ID | Test Acc | External Acc | "
-        "Best Val Acc | Nebulosa Externa | Galáxia Externa |"
+        "Best Val Acc | Nebulosa Externa | Galáxia Externa | Promovível |"
     )
-    lines.append("|---:|---|---|---:|---:|---:|---:|---:|")
+    lines.append("|---:|---|---|---:|---:|---:|---:|---:|---:|")
 
     for position, (_, row) in enumerate(comparison_df.iterrows(), start=1):
         lines.append(
@@ -332,7 +485,8 @@ def save_comparison_markdown(comparison_df: pd.DataFrame) -> None:
             f"{format_percent(row.get('external_accuracy', 0))} | "
             f"{format_percent(row.get('best_validation_accuracy', 0))} | "
             f"{row.get('external_nebulosa_accuracy', '')} | "
-            f"{row.get('external_galaxia_accuracy', '')} |"
+            f"{row.get('external_galaxia_accuracy', '')} | "
+            f"{row.get('is_promotable', '')} |"
         )
 
     best_row = comparison_df.iloc[0]
@@ -356,6 +510,48 @@ def save_comparison_markdown(comparison_df: pd.DataFrame) -> None:
     lines.append(
         f"- Galáxia externa: {best_row.get('external_galaxia_accuracy', '')}"
     )
+    lines.append(
+        f"- Promovível: {best_row.get('is_promotable', '')}"
+    )
+
+    promotable_df = comparison_df[
+        comparison_df["is_promotable"].astype(str).str.lower() == "true"
+    ]
+
+    lines.append("")
+    lines.append("## Melhor experimento promovível")
+    lines.append("")
+
+    if promotable_df.empty:
+        lines.append("Nenhum experimento com checkpoint válido foi encontrado.")
+    else:
+        best_promotable_row = promotable_df.iloc[0]
+
+        lines.append(f"- Modelo: **{best_promotable_row.get('model_version', '')}**")
+        lines.append(f"- Train Run ID: `{best_promotable_row.get('train_run_id', '')}`")
+        lines.append(
+            f"- Test Accuracy: "
+            f"{format_percent(best_promotable_row.get('test_accuracy', 0))}"
+        )
+        lines.append(
+            f"- External Accuracy: "
+            f"{format_percent(best_promotable_row.get('external_accuracy', 0))}"
+        )
+        lines.append(
+            f"- Best Validation Accuracy: "
+            f"{format_percent(best_promotable_row.get('best_validation_accuracy', 0))}"
+        )
+        lines.append(
+            f"- Nebulosa externa: "
+            f"{best_promotable_row.get('external_nebulosa_accuracy', '')}"
+        )
+        lines.append(
+            f"- Galáxia externa: "
+            f"{best_promotable_row.get('external_galaxia_accuracy', '')}"
+        )
+        lines.append(
+            f"- Checkpoint: `{best_promotable_row.get('checkpoint_path', '')}`"
+        )
     lines.append("")
     lines.append("## Observações")
     lines.append("")
@@ -393,20 +589,56 @@ def print_summary(comparison_df: pd.DataFrame) -> None:
             f"External Acc: {format_percent(row.get('external_accuracy', 0))} | "
             f"Test Acc: {format_percent(row.get('test_accuracy', 0))} | "
             f"Best Val Acc: {format_percent(row.get('best_validation_accuracy', 0))} | "
+            f"Promovível: {row.get('is_promotable', '')} | "
             f"Train Run: {row.get('train_run_id', '')}"
         )
 
     best_row = comparison_df.iloc[0]
 
     print("-" * 80)
-    print("Melhor experimento")
+    print("Melhor experimento histórico")
     print(f"Modelo: {best_row.get('model_version', '')}")
     print(f"Train Run ID: {best_row.get('train_run_id', '')}")
     print(f"External Accuracy: {format_percent(best_row.get('external_accuracy', 0))}")
     print(f"Test Accuracy: {format_percent(best_row.get('test_accuracy', 0))}")
-    print(f"Best Validation Accuracy: {format_percent(best_row.get('best_validation_accuracy', 0))}")
+    print(
+        f"Best Validation Accuracy: "
+        f"{format_percent(best_row.get('best_validation_accuracy', 0))}"
+    )
     print(f"Nebulosa externa: {best_row.get('external_nebulosa_accuracy', '')}")
     print(f"Galáxia externa: {best_row.get('external_galaxia_accuracy', '')}")
+    print(f"Promovível: {best_row.get('is_promotable', '')}")
+
+    promotable_df = comparison_df[
+        comparison_df["is_promotable"].astype(str).str.lower() == "true"
+    ]
+
+    print("-" * 80)
+    print("Melhor experimento promovível")
+
+    if promotable_df.empty:
+        print("Nenhum experimento promovível encontrado.")
+        return
+
+    best_promotable_row = promotable_df.iloc[0]
+
+    print(f"Modelo: {best_promotable_row.get('model_version', '')}")
+    print(f"Train Run ID: {best_promotable_row.get('train_run_id', '')}")
+    print(
+        f"External Accuracy: "
+        f"{format_percent(best_promotable_row.get('external_accuracy', 0))}"
+    )
+    print(
+        f"Test Accuracy: "
+        f"{format_percent(best_promotable_row.get('test_accuracy', 0))}"
+    )
+    print(
+        f"Best Validation Accuracy: "
+        f"{format_percent(best_promotable_row.get('best_validation_accuracy', 0))}"
+    )
+    print(f"Nebulosa externa: {best_promotable_row.get('external_nebulosa_accuracy', '')}")
+    print(f"Galáxia externa: {best_promotable_row.get('external_galaxia_accuracy', '')}")
+    print(f"Checkpoint: {best_promotable_row.get('checkpoint_path', '')}")
 
 
 def main() -> None:
