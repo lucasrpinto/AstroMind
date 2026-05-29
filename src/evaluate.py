@@ -2,6 +2,7 @@ from typing import Any, cast
 
 import pandas as pd
 import torch
+from pathlib import Path
 from torch import Tensor
 
 from src.config import (
@@ -10,7 +11,6 @@ from src.config import (
     CONFUSION_MATRIX_FILE,
     TEST_LABELS_FILE,
     EVALUATE_RUNS_LOG_FILE,
-    TEST_LABELS_FILE,
     ensure_directories,
 )
 
@@ -45,6 +45,35 @@ def load_checkpoint(device: torch.device) -> dict[str, Any]:
 
     return cast(dict[str, Any], checkpoint)
 
+def get_test_labels_file_from_checkpoint(
+    checkpoint: dict[str, Any],
+) -> Path:
+    """
+    Retorna o arquivo de teste usado no treino.
+
+    Prioriza o test_labels_file salvo no checkpoint.
+    Caso não exista, usa o TEST_LABELS_FILE atual para compatibilidade.
+    """
+
+    checkpoint_test_labels_file = str(
+        checkpoint.get("test_labels_file", "")
+    ).strip()
+
+    if checkpoint_test_labels_file:
+        labels_path = Path(checkpoint_test_labels_file)
+
+        if labels_path.exists():
+            print(f"Usando test_labels_file do checkpoint: {labels_path}")
+            return labels_path
+
+        print(
+            "Aviso: test_labels_file do checkpoint não foi encontrado. "
+            f"Usando TEST_LABELS_FILE atual. Caminho ausente: {labels_path}"
+        )
+
+    print(f"Usando TEST_LABELS_FILE atual: {TEST_LABELS_FILE}")
+
+    return TEST_LABELS_FILE
 
 def load_model(
     checkpoint: dict[str, Any],
@@ -112,9 +141,12 @@ def predict_tensor(
     return predicted_index, confidence, probabilities[0].cpu()
 
 
-def evaluate_model() -> tuple[list[dict[str, Any]], dict[str, Any]]:
+def evaluate_model() -> tuple[list[dict[str, Any]], dict[str, Any], Path]:
     """
-    Avalia o modelo em todas as imagens do dataset aprovado.
+    Avalia o modelo usando o arquivo de teste salvo no checkpoint.
+
+    Se o checkpoint não tiver test_labels_file, usa o TEST_LABELS_FILE atual
+    para manter compatibilidade com modelos antigos.
     """
 
     ensure_directories()
@@ -126,13 +158,16 @@ def evaluate_model() -> tuple[list[dict[str, Any]], dict[str, Any]]:
     checkpoint = load_checkpoint(device)
     model = load_model(checkpoint, device)
 
+    test_labels_file = get_test_labels_file_from_checkpoint(checkpoint)
+
     idx_to_class = checkpoint["idx_to_class"]
 
     dataset = AstronomyImageDataset(
-        labels_file=TEST_LABELS_FILE,
+        labels_file=test_labels_file,
         transform=get_eval_transforms(),
     )
 
+    print(f"Arquivo de teste usado: {test_labels_file}")
     print(f"Total de imagens avaliadas: {len(dataset)}")
     print(f"Classes: {dataset.classes}")
 
@@ -188,7 +223,7 @@ def evaluate_model() -> tuple[list[dict[str, Any]], dict[str, Any]]:
     print(f"Acurácia geral: {accuracy * 100:.2f}%")
     print(f"Acertos: {correct_predictions}/{len(dataset)}")
 
-    return results, checkpoint
+    return results, checkpoint, test_labels_file
 
 
 def save_evaluation_report(results: list[dict[str, Any]]) -> pd.DataFrame:
@@ -282,9 +317,10 @@ def append_evaluate_run_log(
     evaluate_run_id: str,
     checkpoint: dict[str, Any],
     results_df: pd.DataFrame,
+    test_labels_file: Path,
 ) -> None:
     """
-    Registra uma linha acumulativa com o resultado da avaliação.
+    Registra uma linha acumulativa com o resultado da avaliação interna.
     """
 
     total = len(results_df)
@@ -306,21 +342,22 @@ def append_evaluate_run_log(
         )
 
     fieldnames = [
-        "external_evaluate_run_id",
+        "evaluate_run_id",
         "train_run_id",
         "created_at",
         "model_version",
         "model_file",
         "model_epoch",
-        "total_images",
-        "labeled_images",
+        "dataset_file",
+        "dataset_size",
+        "num_classes",
+        "classes",
         "accuracy",
         "correct",
         "errors",
         "class_accuracy",
-        "external_labels_file",
-        "external_report_file",
-        "external_confusion_matrix_file",
+        "evaluation_report_file",
+        "confusion_matrix_file",
     ]
 
     row = {
@@ -330,7 +367,7 @@ def append_evaluate_run_log(
         "created_at": now_iso(),
         "model_file": str(MODEL_FILE),
         "model_epoch": checkpoint.get("epoch", ""),
-        "dataset_file": str(TEST_LABELS_FILE),
+        "dataset_file": str(test_labels_file),
         "dataset_size": total,
         "num_classes": len(checkpoint.get("classes", [])),
         "classes": "|".join(checkpoint.get("classes", [])),
@@ -350,6 +387,7 @@ def append_evaluate_run_log(
 
     print(f"Log acumulativo da avaliação salvo em: {EVALUATE_RUNS_LOG_FILE}")
 
+
 def main() -> None:
     """
     Executa a avaliação completa do modelo.
@@ -358,7 +396,7 @@ def main() -> None:
     evaluate_run_id = create_run_id("evaluate")
     print(f"Evaluate Run ID: {evaluate_run_id}")
 
-    results, checkpoint = evaluate_model()
+    results, checkpoint, test_labels_file = evaluate_model()
 
     results_df = save_evaluation_report(results)
 
@@ -370,6 +408,7 @@ def main() -> None:
         evaluate_run_id=evaluate_run_id,
         checkpoint=checkpoint,
         results_df=results_df,
+        test_labels_file=test_labels_file,
     )
 
     print("Avaliação finalizada.")

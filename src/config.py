@@ -18,6 +18,8 @@ DOCS_DIR = BASE_DIR / "docs"
 EXPERIMENT_HISTORY_MARKDOWN_FILE = DOCS_DIR / "experiment_history.md"
 
 LABELS_DIR = DATA_DIR / "labels"
+LABEL_RUNS_DIR = LABELS_DIR / "runs"
+
 LABELS_FILE = LABELS_DIR / "labels.csv"
 TRAIN_LABELS_FILE = LABELS_DIR / "train_labels.csv"
 VAL_LABELS_FILE = LABELS_DIR / "val_labels.csv"
@@ -679,6 +681,7 @@ def ensure_directories() -> None:
         PROCESSED_ARRAYS_DIR,
         REJECTED_IMAGES_DIR,
         LABELS_DIR,
+        LABEL_RUNS_DIR,
         MODELS_DIR,
         CHECKPOINTS_DIR,
         OUTPUT_IMAGES_DIR,

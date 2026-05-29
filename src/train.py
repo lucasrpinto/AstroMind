@@ -1,11 +1,12 @@
 import csv
-from collections import Counter
-from datetime import datetime
-from pathlib import Path
-
-import matplotlib.pyplot as plt
 import torch
+import shutil
+import matplotlib.pyplot as plt
+
+from pathlib import Path
 from torch import Tensor, nn
+from datetime import datetime
+from collections import Counter
 from torch.utils.data import DataLoader, WeightedRandomSampler
 
 from src.config import (
@@ -34,6 +35,8 @@ from src.config import (
     USE_CLASS_WEIGHTS,
     RUN_CHECKPOINTS_DIR,
     MODEL_VERSION_FILE_STEM,
+    LABEL_RUNS_DIR,
+    TEST_LABELS_FILE,
     ensure_directories,
 )
 from src.dataset import (
@@ -92,7 +95,53 @@ def create_weighted_sampler(
 
     return sampler
 
-def create_data_loaders() -> tuple[
+def create_label_snapshot(train_run_id: str) -> dict[str, Path]:
+    """
+    Cria uma cópia dos arquivos de split usados neste treino.
+
+    Isso preserva exatamente quais imagens foram usadas em treino,
+    validação e teste para cada train_run_id.
+    """
+
+    snapshot_dir = LABEL_RUNS_DIR / train_run_id
+    snapshot_dir.mkdir(parents=True, exist_ok=True)
+
+    snapshot_train_file = snapshot_dir / "train_labels.csv"
+    snapshot_val_file = snapshot_dir / "val_labels.csv"
+    snapshot_test_file = snapshot_dir / "test_labels.csv"
+
+    required_files = [
+        TRAIN_LABELS_FILE,
+        VAL_LABELS_FILE,
+        TEST_LABELS_FILE,
+    ]
+
+    for labels_file in required_files:
+        if not labels_file.exists():
+            raise FileNotFoundError(
+                f"Arquivo de split não encontrado: {labels_file}. "
+                "Execute primeiro: python -m src.split_dataset"
+            )
+
+    shutil.copy2(TRAIN_LABELS_FILE, snapshot_train_file)
+    shutil.copy2(VAL_LABELS_FILE, snapshot_val_file)
+    shutil.copy2(TEST_LABELS_FILE, snapshot_test_file)
+
+    print("Snapshot dos splits criado:")
+    print(f"- Treino: {snapshot_train_file}")
+    print(f"- Validação: {snapshot_val_file}")
+    print(f"- Teste: {snapshot_test_file}")
+
+    return {
+        "train_labels_file": snapshot_train_file,
+        "val_labels_file": snapshot_val_file,
+        "test_labels_file": snapshot_test_file,
+    }
+
+def create_data_loaders(
+    train_labels_file: Path,
+    val_labels_file: Path,
+) -> tuple[
     AstronomyImageDataset,
     AstronomyImageDataset,
     DataLoader,
@@ -106,12 +155,12 @@ def create_data_loaders() -> tuple[
     """
 
     train_dataset = AstronomyImageDataset(
-        labels_file=TRAIN_LABELS_FILE,
+        labels_file=train_labels_file,
         transform=get_train_transforms(),
     )
 
     validation_dataset = AstronomyImageDataset(
-        labels_file=VAL_LABELS_FILE,
+        labels_file=val_labels_file,
         transform=get_eval_transforms(),
     )
 
@@ -262,6 +311,9 @@ def build_checkpoint(
     validation_loss: float,
     validation_accuracy: float,
     train_run_id: str,
+    train_labels_file: Path,
+    val_labels_file: Path,
+    test_labels_file: Path,
 ) -> dict:
     """
     Monta o checkpoint do modelo.
@@ -279,6 +331,9 @@ def build_checkpoint(
         "validation_loss": validation_loss,
         "validation_accuracy": validation_accuracy,
         "train_run_id": train_run_id,
+        "train_labels_file": str(train_labels_file),
+        "val_labels_file": str(val_labels_file),
+        "test_labels_file": str(test_labels_file),
     }
 
 
@@ -477,6 +532,9 @@ def append_train_run_log(
     class_weights: Tensor,
     best_model_file: Path,
     last_model_file: Path,
+    train_labels_file: Path,
+    val_labels_file: Path,
+    test_labels_file: Path,    
 ) -> None:
     """
     Registra uma linha acumulativa com o resultado da rodada de treino.
@@ -490,6 +548,9 @@ def append_train_run_log(
         "validation_size",
         "num_classes",
         "classes",
+        "train_labels_file",
+        "val_labels_file",
+        "test_labels_file",
         "epochs",
         "stopped_epoch",
         "batch_size",
@@ -557,6 +618,9 @@ def append_train_run_log(
         "training_lr_plot_file": str(TRAINING_LR_PLOT_FILE),
         "use_weighted_sampler": USE_WEIGHTED_SAMPLER,
         "use_class_weights": USE_CLASS_WEIGHTS,
+        "train_labels_file": str(train_labels_file),
+        "val_labels_file": str(val_labels_file),
+        "test_labels_file": str(test_labels_file),
     }
 
     append_csv_row(
@@ -592,13 +656,22 @@ def main() -> None:
 
     train_run_id = create_run_id("train")
 
+    label_snapshot = create_label_snapshot(train_run_id)
+
+    train_labels_file = label_snapshot["train_labels_file"]
+    val_labels_file = label_snapshot["val_labels_file"]
+    test_labels_file = label_snapshot["test_labels_file"]    
+
     run_best_model_file, run_last_model_file = build_run_checkpoint_paths(train_run_id)
 
     print(f"Train Run ID: {train_run_id}")
 
     torch.manual_seed(RANDOM_SEED)
 
-    train_dataset, validation_dataset, train_loader, validation_loader = create_data_loaders()
+    train_dataset, validation_dataset, train_loader, validation_loader = create_data_loaders(
+        train_labels_file=train_labels_file,
+        val_labels_file=val_labels_file,
+    )
 
     num_classes = len(train_dataset.classes)
 
@@ -701,6 +774,9 @@ def main() -> None:
                 validation_loss=validation_loss,
                 validation_accuracy=validation_accuracy,
                 train_run_id=train_run_id,
+                train_labels_file=train_labels_file,
+                val_labels_file=val_labels_file,
+                test_labels_file=test_labels_file,
             )
 
             save_model_checkpoint(
@@ -769,6 +845,9 @@ def main() -> None:
         validation_loss=final_validation_loss,
         validation_accuracy=final_validation_accuracy,
         train_run_id=train_run_id,
+        train_labels_file=train_labels_file,
+        val_labels_file=val_labels_file,
+        test_labels_file=test_labels_file,
     )
 
     save_model_checkpoint(
@@ -815,6 +894,9 @@ def main() -> None:
         class_weights=class_weights,
         best_model_file=run_best_model_file,
         last_model_file=run_last_model_file,
+        train_labels_file=train_labels_file,
+        val_labels_file=val_labels_file,
+        test_labels_file=test_labels_file,
     )
 
     print("-" * 80)
